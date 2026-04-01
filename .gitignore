@@ -1,0 +1,15 @@
+# Compilação e Executáveis
+*.o
+*.out
+programaTrab
+
+# Arquivo de Dados
+*.bin
+
+# IDE e Sistema
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Compactação
+.zip
