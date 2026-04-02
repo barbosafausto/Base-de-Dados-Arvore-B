@@ -41,10 +41,14 @@ int adicionarParUnico(NodePares **head, int cod1, int cod2) {
 
     // Verifica se já existe
     NodePares *cur = *head;
+    
+    // Par inválido
+    if (cod1 == -1 || cod2 == -1) return 0;
+
     while(cur != NULL) {
         // Nessa condição, não importa a ordem (A->B == B->A)
-        if((cur->cod1 == cod1 && cur->cod2 == cod2) || (cur->cod1 == cod2 && cur->cod2 == cod1) || (cod1 == -1 || cod2 == -1)) {
-            return 0; // Par já existe ou é inválido
+        if((cur->cod1 == cod1 && cur->cod2 == cod2) || (cur->cod1 == cod2 && cur->cod2 == cod1)) {
+            return 0; // Par já existe 
         }
         cur = cur->prox;
     }
@@ -81,6 +85,38 @@ void liberarUtils(NodeNome *headNomes, NodePares *headPares) {
         curPares = curPares->prox;
         free(temp); // Libera o nó
     }
+}
+
+void utils_contaNroEstacoesNroPares(Cabecalho *cabecalho, FILE *arquivoBin) {
+
+    if (cabecalho == NULL || arquivoBin == NULL) return;
+
+    //Volta cursor para o início, pós cabeçalho
+    fseek(arquivoBin, 17, SEEK_SET);
+
+    int nroEstacoes = 0;
+    int nroParesEstacao = 0;
+
+    //Enquanto não alcançar o fim do arquivo
+    Registro *registro = (Registro*) malloc(sizeof(Registro));
+    NodeNome *n_head = NULL;
+    NodePares *p_head = NULL;
+    while(lerRegistroBin(arquivoBin, registro) != -1) {
+
+        if (registro->removido == '1') continue;
+
+        if (adicionarEstacaoUnica(&n_head, registro->nomeEstacao))
+            nroEstacoes++;
+    
+        if (adicionarParUnico(&p_head, registro->codEstacao, registro->codProxEstacao))
+            nroParesEstacao++;
+    }
+
+    cabecalho->nroEstacoes = nroEstacoes;
+    cabecalho->nroParesEstacao = nroParesEstacao;
+
+    free(registro);
+    liberarUtils(n_head, p_head);
 }
 
 int compararRegistroComFiltros(Registro *registro, Busca *busca) {
@@ -135,4 +171,78 @@ int compararRegistroComFiltros(Registro *registro, Busca *busca) {
     }
 
     return 1; // Passou nos filtros
+}
+
+
+void recebeFiltros(Busca *busca, int nBuscas) {
+
+    for (int i = 0; i < nBuscas; i++) {
+        scanf("%d", &busca[i].mFiltros);
+        busca[i].filtro = (Filtro *) malloc(busca[i].mFiltros * sizeof(Filtro));
+
+        for (int j = 0; j < busca[i].mFiltros; j++) {
+            scanf("%s", busca[i].filtro[j].nomeCampo);
+
+            if (strcmp(busca[i].filtro[j].nomeCampo, "nomeEstacao") == 0 ||
+                strcmp(busca[i].filtro[j].nomeCampo, "nomeLinha") == 0) {
+                // 
+                    // Campo string
+                    ScanQuoteString(busca[i].filtro[j].valorString);
+                busca[i].filtro[j].isString = 1;
+
+            } 
+            
+            else {
+                // Campo int ou NULO
+                char valor[64];
+                scanf(" %s", valor);
+                if (strcmp(valor, "NULO") == 0) {
+                    busca[i].filtro[j].valorInt = -1; // Valor padrão para NULO
+                } else {
+                    busca[i].filtro[j].valorInt = atoi(valor);
+                }
+                busca[i].filtro[j].isString = 0;
+            }
+        }
+    }
+}
+
+void utils_atualizarRegistroComFiltros(Busca busca, FILE *arquivoBin, int offsetAtual) {
+
+    int offsetRegistro = offsetAtual - 80;
+
+    Registro registro;
+    fseek(arquivoBin, offsetRegistro, SEEK_SET);
+    lerRegistroBin(arquivoBin, &registro);
+
+    for (int j = 0; j < busca.mFiltros; j++) {
+
+        //Agora, vamos atualizar o registro
+        if      (strcmp(busca.filtro[j].nomeCampo, "codEstacao") == 0)      registro.codEstacao = busca.filtro[j].valorInt;
+        else if (strcmp(busca.filtro[j].nomeCampo, "codLinha") == 0)        registro.codLinha = busca.filtro[j].valorInt;
+        else if (strcmp(busca.filtro[j].nomeCampo, "codProxEstacao") == 0)  registro.codProxEstacao = busca.filtro[j].valorInt;
+        else if (strcmp(busca.filtro[j].nomeCampo, "distProxEstacao") == 0) registro.distProxEstacao = busca.filtro[j].valorInt; 
+        else if (strcmp(busca.filtro[j].nomeCampo, "codLinhaIntegra") == 0) registro.codLinhaIntegra = busca.filtro[j].valorInt;
+        else if (strcmp(busca.filtro[j].nomeCampo, "codEstIntegra") == 0)   registro.codEstIntegra = busca.filtro[j].valorInt;
+        
+        else if      (strcmp(busca.filtro[j].nomeCampo, "nomeLinha") == 0) {
+
+            strcpy(registro.nomeEstacao, busca.filtro[j].valorString);           
+            registro.tamNomeEstacao = strlen(registro.nomeEstacao);
+        }
+
+        else if (strcmp(busca.filtro[j].nomeCampo, "codLinha") == 0) {
+            
+            strcpy(registro.nomeLinha, busca.filtro[j].valorString);           
+            registro.tamNomeLinha = strlen(registro.nomeLinha);
+
+        }
+    }
+
+    //Agora é só escrever o registro :D
+    fseek(arquivoBin, offsetRegistro, SEEK_SET);
+    escreverRegistroBin(arquivoBin, &registro);
+
+    //Restaurando a posição para não corromper o loop
+    fseek(arquivoBin, offsetAtual, SEEK_SET);
 }

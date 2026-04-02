@@ -13,3 +13,10 @@ Thumbs.db
 
 # Compactação
 .zip
+
+# Arquivos de Texto
+*.txt
+
+# Testes e Binários, pois podem ficar desatualizados
+Testes/
+Binários/

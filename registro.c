@@ -1,5 +1,4 @@
 #include "registro.h"
-#include <stdio.h>
 
 void initCabecalho(Cabecalho *cabecalho) {
     cabecalho->status = '0';            // Inconsistente
@@ -111,4 +110,85 @@ void imprimirRegistro(Registro *registro) {
     (registro->codEstIntegra == -1)     ? printf("NULO\n") : printf("%d\n", registro->codEstIntegra);
 
     return;
+}
+
+void deletarRegistro(Registro *registro, Cabecalho *cabecalho, FILE *arquivoBin, int offsetAtual) {
+
+    int byteOffsetRegistro = offsetAtual - 80;
+
+    // Atualização dos dados do registro em memória
+    registro->removido = '1';                 
+    registro->proximo = cabecalho->topo;      // O "próximo" aponta para o antigo topo
+
+    // Posicionamento do cursor
+    fseek(arquivoBin, byteOffsetRegistro, SEEK_SET);
+
+    // Update de informações do registro
+    fwrite(&registro->removido, sizeof(char), 1, arquivoBin);
+    fwrite(&registro->proximo, sizeof(int), 1, arquivoBin);
+
+    //Atualização do topo da pilha (no cabeçalho)
+    //Será escrito em disco quando acabarem as deleções
+    cabecalho->topo = byteOffsetRegistro / 80;
+
+    //Volta para o offset correto do loop de deleções
+    fseek(arquivoBin, offsetAtual, SEEK_SET);
+}    
+
+void lerCabecalho(Cabecalho *cabecalho, FILE *arquivoBin) {
+
+    fread(&cabecalho->status,          1, 1, arquivoBin);
+    fread(&cabecalho->topo,            4, 1, arquivoBin);
+    fread(&cabecalho->proxRRN,         4, 1, arquivoBin);
+    fread(&cabecalho->nroEstacoes,     4, 1, arquivoBin);
+    fread(&cabecalho->nroParesEstacao, 4, 1, arquivoBin);
+}
+
+Registro *utils_leRegistros(int nRegistros) {
+
+    Registro *registros = (Registro*) malloc(nRegistros * sizeof(Registro));
+    for (int i = 0; i < nRegistros; i++) {
+
+        // 100 bytes: comprimento seguro
+        char valor[100];
+        int valorInt; 
+
+        registros[i].removido = '0';
+        registros[i].proximo = -1;
+        
+        for (int j = 0; j < 8; j++) { 
+
+            // String
+            if (j == 1 || j == 3) 
+                ScanQuoteString(valor);
+
+            // Int
+            else {
+                scanf(" %s", valor);
+                valorInt = (strcmp(valor, "NULO") == 0) ? -1 : atoi(valor);
+            }
+            
+        //Inserção dos dados no registro
+        if (j == 0)      registros[i].codEstacao = valorInt;
+        else if (j == 1) {
+            
+            strcpy(registros[i].nomeEstacao, valor);
+            registros[i].tamNomeEstacao = strlen(valor);
+        }
+        else if (j == 2) registros[i].codLinha = valorInt;
+        else if (j == 3) {
+
+            strcpy(registros[i].nomeLinha, valor);
+            registros[i].tamNomeLinha = strlen(valor);
+        }
+
+        else if (j == 4) registros[i].codProxEstacao = valorInt;
+        else if (j == 5) registros[i].distProxEstacao = valorInt;
+        else if (j == 6) registros[i].codLinhaIntegra = valorInt;
+        else             registros[i].codEstIntegra = valorInt;
+        
+        }
+    }
+
+    return registros;
 }
