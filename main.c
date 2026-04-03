@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include "funcionalidades/funcionalidades.h"
 
+/* DUPLA
+15512767 - José Fausto Vital Barbosa
+16876293 - João Pedro Boaretto
+*/
+
 int main() {
 
     int funcionalidade, nBuscas;
