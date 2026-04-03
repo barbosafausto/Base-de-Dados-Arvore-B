@@ -39,22 +39,22 @@
     //  --- Funções auxiliares
 
     // Incrementa nroEstacoes se a atual for única
-    int adicionarEstacaoUnica(NodeNome **head, char *nome);
+    int utils_adicionarEstacaoUnica(NodeNome **head, char *nome);
 
     // Incrementa o nroParesEstacoes se o códigos atuais forem únicos e não-nulos
-    int adicionarParUnico(NodePares **head, int cod1, int cod2);
+    int utils_adicionarParUnico(NodePares **head, int cod1, int cod2);
 
     // Percorre o arquivo nas função Insert e Delete para atualizar o nroEstacoes e nroParesEstacoes
     void utils_contaNroEstacoesNroPares(Cabecalho *cabecalho, FILE *arquivoBin, int Delete);
 
     // Liberação da memória alocada para contar as estações e os pares 
-    void liberarUtils(NodeNome *headNomes, NodePares *headPares);
+    void utils_liberarUtils(NodeNome *headNomes, NodePares *headPares);
 
     // Função extremamente útil: recebe campos tratando strings e valores nulos
     void utils_recebeCampos(Busca *busca, int nBuscas);
 
     // Função extremamente útil 2: comparar registros com filtros
-    int compararRegistroComFiltros(Registro *registro, Busca *busca);
+    int utils_compararRegistroComFiltros(Registro *registro, Busca *busca);
 
     // Atualiza registro com base nos filtros da funcionalidade "update"
     void utils_atualizarRegistroComFiltros(Busca busca, FILE *arquivoBin, int offsetAtual);

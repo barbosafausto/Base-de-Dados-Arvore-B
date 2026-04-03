@@ -11,10 +11,12 @@
     #define TAM_REGISTRO 80
     #define LIXO '$'
 
+    // --- Structs para o cabeçalho e registro
+
     // Cabeçalho (17 bytes)
     typedef struct {
         char status;                // '0' -> inconsistente. '1' -> consistente.
-        int topo;                   // byte offset de um registro removido )
+        int topo;                   // byte offset de um registro removido 
         int proxRRN;                // próximo RRN disponível
         int nroEstacoes;            // Qtd estações diferentes armazenadas
         int nroParesEstacao;        // Qtd pares de estações diferentes armazenados
@@ -31,22 +33,41 @@
         int codLinhaIntegra;
         int codEstIntegra;
         int tamNomeEstacao;
-        char nomeEstacao[64];   // Espaço na memória para trabalhar com o nomeEstacao, será tratado na hora de gravar.
+        char nomeEstacao[85];       // Espaço na memória para trabalhar com o nomeEstacao, será tratado na hora de gravar.
         int tamNomeLinha;
-        char nomeLinha[64];     // 64 bytes - valor para dar uma boa margem de segurança.
+        char nomeLinha[85];        // 85 bytes - valor para dar uma boa margem de segurança.
     } Registro;
 
+    // --- Funções Auxiliares
+    
+    // Processa as linhas do CSV e coloca os campos na struct
     void registro_processaCSV(Registro *registro, char *pLinha);
 
-    void initCabecalho(Cabecalho *cabecalho);
+    // Inicia o cabeçalho na funcionalidade "createTable"
+    void registro_initCabecalho(Cabecalho *cabecalho);
+
+    // Gerencia consistência do arquivo nas funcionalidades, além de escrever o cabeçalho 
     int registro_gerenciaCabecalho(Cabecalho *cabecalho, FILE *arquivoBin, int escreveConsistente, int leitura);
 
-    void lerCabecalho(Cabecalho *cabecalho, FILE *arquivoBin);
-    void escreverCabecalhoBin(FILE *arquivo, Cabecalho *cabecalho);
+    // Lê o cabeçalho do arquivo
+    void registro_lerCabecalho(Cabecalho *cabecalho, FILE *arquivoBin);
+
+    // Escreve o cabeçalho no arquivo
+    void registro_escreverCabecalhoBin(FILE *arquivo, Cabecalho *cabecalho);
     
-    int lerRegistroBin(FILE *arquivo, Registro *registro);
-    void escreverRegistroBin(FILE *arquivo, Registro *registro);
-    void imprimirRegistro(Registro *registro);
-    void deletarRegistro(Registro *registro, Cabecalho *cabecalho, FILE *arquivoBin, int offsetAtual);
-    Registro *registro_lerRegistros(int nRegistros);
+    // Lê o registro do arquivo
+    int registro_lerRegistroBin(FILE *arquivo, Registro *registro);
+
+    // Escreve o registro no arquivo
+    void registro_escreverRegistroBin(FILE *arquivo, Registro *registro);
+
+    // Imprime um registro
+    void registro_imprimirRegistro(Registro *registro);
+
+    // Deleta um registro usando a remoção lógica
+    void registro_deletarRegistro(Registro *registro, Cabecalho *cabecalho, FILE *arquivoBin, int offsetAtual);
+
+    // Lê n registros da entrada e coloca todos em structs
+    void registro_lerRegistros(Registro *registros, int nRegistros);
+
 #endif 

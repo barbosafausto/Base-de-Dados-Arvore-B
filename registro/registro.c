@@ -53,13 +53,15 @@ void registro_processaCSV(Registro *registro, char linha[]) {
         registro->codEstIntegra = (token[0] == '\0') ? -1 : atoi(token);
 }
 
-void initCabecalho(Cabecalho *cabecalho) {
+
+void registro_initCabecalho(Cabecalho *cabecalho) {
     cabecalho->status = '0';            // Inconsistente
     cabecalho->topo = -1;               // Nenhum registro removido (Pilha vazia)
     cabecalho->proxRRN = 0;             // Próximo RRN disponível é o primeiro
     cabecalho->nroEstacoes = 0;         // Nenhuma estação armazenada
-    cabecalho->nroParesEstacao = 0;     // Nenhum par de estações armazenado
+   cabecalho->nroParesEstacao = 0;     // Nenhum par de estações armazenado
 }
+
 
 int registro_gerenciaCabecalho(Cabecalho *cabecalho, FILE *arquivoBin, int escreverConsistente, int leitura) {
     
@@ -91,13 +93,24 @@ int registro_gerenciaCabecalho(Cabecalho *cabecalho, FILE *arquivoBin, int escre
 
         cabecalho->status = '1'; 
         fseek(arquivoBin, 0, SEEK_SET);
-        escreverCabecalhoBin(arquivoBin, cabecalho);
+        registro_escreverCabecalhoBin(arquivoBin, cabecalho);
     }
 
     return 1;
 }
 
-void escreverCabecalhoBin(FILE *arquivo, Cabecalho *cabecalho) {
+
+void registro_lerCabecalho(Cabecalho *cabecalho, FILE *arquivoBin) {
+
+    fread(&cabecalho->status,          1, 1, arquivoBin);
+    fread(&cabecalho->topo,            4, 1, arquivoBin);
+    fread(&cabecalho->proxRRN,         4, 1, arquivoBin);
+    fread(&cabecalho->nroEstacoes,     4, 1, arquivoBin);
+    fread(&cabecalho->nroParesEstacao, 4, 1, arquivoBin);
+}
+
+
+void registro_escreverCabecalhoBin(FILE *arquivo, Cabecalho *cabecalho) {
     
     // Escrever o cabeçalho no arquivo binário (17 bytes)
     fwrite(&cabecalho->status,          1, 1, arquivo);
@@ -109,7 +122,8 @@ void escreverCabecalhoBin(FILE *arquivo, Cabecalho *cabecalho) {
     // não utilizei sizeof() para determinar tamanho da escrita (afinal, já está determinado)
 }
 
-int lerRegistroBin(FILE *arquivo, Registro *registro) {
+
+int registro_lerRegistroBin(FILE *arquivo, Registro *registro) {
     
     // Fim do arquivo
     if(fread(&registro->removido, sizeof(char), 1, arquivo) != 1) 
@@ -156,7 +170,8 @@ int lerRegistroBin(FILE *arquivo, Registro *registro) {
     return 1; // Sucesso
 }
 
-void escreverRegistroBin(FILE *arquivo, Registro *registro) {
+
+void registro_escreverRegistroBin(FILE *arquivo, Registro *registro) {
     
     // Escrever campos fixos do registro
     fwrite(&registro->removido,        sizeof(char), 1, arquivo);
@@ -188,7 +203,8 @@ void escreverRegistroBin(FILE *arquivo, Registro *registro) {
     }
 }
 
-void imprimirRegistro(Registro *registro) {
+
+void registro_imprimirRegistro(Registro *registro) {
     
     // Nunca serão NULO
     printf("%d ", registro->codEstacao);
@@ -205,7 +221,8 @@ void imprimirRegistro(Registro *registro) {
     return;
 }
 
-void deletarRegistro(Registro *registro, Cabecalho *cabecalho, FILE *arquivoBin, int offsetAtual) {
+
+void registro_deletarRegistro(Registro *registro, Cabecalho *cabecalho, FILE *arquivoBin, int offsetAtual) {
 
     int byteOffsetRegistro = offsetAtual - 80;
 
@@ -228,18 +245,9 @@ void deletarRegistro(Registro *registro, Cabecalho *cabecalho, FILE *arquivoBin,
     fseek(arquivoBin, offsetAtual, SEEK_SET);
 }    
 
-void lerCabecalho(Cabecalho *cabecalho, FILE *arquivoBin) {
 
-    fread(&cabecalho->status,          1, 1, arquivoBin);
-    fread(&cabecalho->topo,            4, 1, arquivoBin);
-    fread(&cabecalho->proxRRN,         4, 1, arquivoBin);
-    fread(&cabecalho->nroEstacoes,     4, 1, arquivoBin);
-    fread(&cabecalho->nroParesEstacao, 4, 1, arquivoBin);
-}
+void registro_lerRegistros(Registro *registros, int nRegistros) {
 
-Registro *registro_lerRegistros(int nRegistros) {
-
-    Registro *registros = (Registro*) malloc(nRegistros * sizeof(Registro));
     for (int i = 0; i < nRegistros; i++) {
 
         // 100 bytes: comprimento seguro, visto que um registro tem 80 bytes
@@ -284,6 +292,4 @@ Registro *registro_lerRegistros(int nRegistros) {
         
         }
     }
-
-    return registros;
 }

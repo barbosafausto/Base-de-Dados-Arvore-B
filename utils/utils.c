@@ -8,7 +8,7 @@
 
 // Dessa forma, mesmo que o arquivo CSV seja muito grande, a memória usada para armazenar
 // os nomes e pares de estações será relativamente pequena.
-int adicionarEstacaoUnica(NodeNome **head, char *nome) {
+int utils_adicionarEstacaoUnica(NodeNome **head, char *nome) {
 
     if(nome == NULL || nome[0] == '\0' || strcmp(nome, "NULO") == 0) return 0;
     
@@ -36,7 +36,7 @@ int adicionarEstacaoUnica(NodeNome **head, char *nome) {
 }
 
 
-int adicionarParUnico(NodePares **head, int cod1, int cod2) {
+int utils_adicionarParUnico(NodePares **head, int cod1, int cod2) {
 
     // Verifica se já existe
     NodePares *cur = *head;
@@ -68,7 +68,7 @@ int adicionarParUnico(NodePares **head, int cod1, int cod2) {
 }
 
 
-void liberarUtils(NodeNome *headNomes, NodePares *headPares) {
+void utils_liberarUtils(NodeNome *headNomes, NodePares *headPares) {
     // Libera lista de nomes
     NodeNome *curNomes = headNomes;
     while(curNomes != NULL) {
@@ -100,57 +100,60 @@ void utils_contaNroEstacoesNroPares(Cabecalho *cabecalho, FILE *arquivoBin, int 
     Registro *registro = (Registro*) malloc(sizeof(Registro));
     NodeNome *n_head = NULL;
     NodePares *p_head = NULL;
-    while(lerRegistroBin(arquivoBin, registro) != -1) {
+    while(registro_lerRegistroBin(arquivoBin, registro) != -1) {
 
         if (registro->removido == '1') continue;
 
         // Atualização dos pares
-        if (adicionarParUnico(&p_head, registro->codEstacao, registro->codProxEstacao))
+        if (utils_adicionarParUnico(&p_head, registro->codEstacao, registro->codProxEstacao))
             nroParesEstacao++;
         
         // Se não for a funcionalidade "deleteWhere", não precisamos atualizar as estações, apenas os pares.
         if (!Delete) continue;
 
         // Atualização das estações (funcionalidade insertInto)
-        if (adicionarEstacaoUnica(&n_head, registro->nomeEstacao))
+        if (utils_adicionarEstacaoUnica(&n_head, registro->nomeEstacao))
             nroEstacoes++;
     }
 
-    cabecalho->nroEstacoes = nroEstacoes;
     cabecalho->nroParesEstacao = nroParesEstacao;
+    if (Delete)
+        cabecalho->nroEstacoes = nroEstacoes;
+
 
     free(registro);
-    liberarUtils(n_head, p_head);
+    utils_liberarUtils(n_head, p_head);
 }
 
 
 void utils_recebeCampos(Busca *busca, int nBuscas) {
 
     for (int i = 0; i < nBuscas; i++) {
+
+        // Número de campos
         scanf("%d", &busca[i].mCampos);
         busca[i].campo = (Campo*) malloc(busca[i].mCampos * sizeof(Campo));
 
+        // Leitura dos campos
         for (int j = 0; j < busca[i].mCampos; j++) {
             scanf("%s", busca[i].campo[j].nomeCampo);
 
+            // Campo string
             if (strcmp(busca[i].campo[j].nomeCampo, "nomeEstacao") == 0 ||
                 strcmp(busca[i].campo[j].nomeCampo, "nomeLinha") == 0) {
-                // 
-                    // Campo string
+                 
                     ScanQuoteString(busca[i].campo[j].valorString);
-                busca[i].campo[j].isString = 1;
+                    busca[i].campo[j].isString = 1;
 
             } 
             
+            // Campo int ou NULO
             else {
-                // Campo int ou NULO
+                
                 char valor[64];
                 scanf(" %s", valor);
-                if (strcmp(valor, "NULO") == 0) {
-                    busca[i].campo[j].valorInt = -1; // Valor padrão para NULO
-                } else {
-                    busca[i].campo[j].valorInt = atoi(valor);
-                }
+
+                busca[i].campo[j].valorInt = (strcmp(valor, "NULO") == 0) ? -1 : atoi(valor);
                 busca[i].campo[j].isString = 0;
             }
         }
@@ -158,7 +161,7 @@ void utils_recebeCampos(Busca *busca, int nBuscas) {
 }
 
 
-int compararRegistroComFiltros(Registro *registro, Busca *busca) {
+int utils_compararRegistroComFiltros(Registro *registro, Busca *busca) {
 
     for (int i = 0; i < busca->mCampos; i++) {
 
@@ -226,7 +229,7 @@ void utils_atualizarRegistroComFiltros(Busca busca, FILE *arquivoBin, int offset
 
     Registro registro;
     fseek(arquivoBin, offsetRegistro, SEEK_SET);
-    lerRegistroBin(arquivoBin, &registro);
+    registro_lerRegistroBin(arquivoBin, &registro);
 
     for (int j = 0; j < busca.mCampos; j++) {
 
@@ -254,7 +257,7 @@ void utils_atualizarRegistroComFiltros(Busca busca, FILE *arquivoBin, int offset
 
     //Agora é só escrever o registro :D
     fseek(arquivoBin, offsetRegistro, SEEK_SET);
-    escreverRegistroBin(arquivoBin, &registro);
+    registro_escreverRegistroBin(arquivoBin, &registro);
 
     //Não precisa dar fseek porque a última escrita posicionou a leitora na posição correta
     //fseek(arquivoBin, offsetAtual, SEEK_SET);
