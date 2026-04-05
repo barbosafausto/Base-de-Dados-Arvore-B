@@ -346,8 +346,8 @@ void update(char* nomeArquivoBin, int nAtualizacoes) {
     Busca *busca = (Busca*) malloc(2*nAtualizacoes*sizeof(Busca));
     utils_recebeCampos(busca, 2*nAtualizacoes);
     
-    //Todo busca[i].campo[j], com j par, representa os valores de atualização da busca i
-    //Todo busca[i].campo[j], com j ímpar, representa os valores de filtro da busca i
+    //Todo busca[i], com i par, representa os valores de atualização da busca 
+    //Todo busca[i], com i ímpar, representa os valores de filtro da busca 
 
     for (int i = 0; i < 2*nAtualizacoes; i += 2) {
         
