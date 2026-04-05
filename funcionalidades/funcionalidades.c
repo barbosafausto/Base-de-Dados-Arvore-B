@@ -346,8 +346,8 @@ void update(char* nomeArquivoBin, int nAtualizacoes) {
     Busca *busca = (Busca*) malloc(2*nAtualizacoes*sizeof(Busca));
     utils_recebeCampos(busca, 2*nAtualizacoes);
     
-    //Todo busca[i], com i par, representa os valores de atualização da busca 
-    //Todo busca[i], com i ímpar, representa os valores de filtro da busca 
+    //Todo busca[i], com i par, representa os valores de filtro da busca 
+    //Todo busca[i], com i ímpar, representa os valores de atualização da busca 
 
     for (int i = 0; i < 2*nAtualizacoes; i += 2) {
         
@@ -370,8 +370,8 @@ void update(char* nomeArquivoBin, int nAtualizacoes) {
         }
         
         // Liberar memória dos filtros da busca atual
-        free(busca[i].campo); 
-        free(busca[i+1].campo);
+        free(busca[i].campo); // filtros
+        free(busca[i+1].campo); // atualizações
     }
 
     // ---- Arquivo será fechado: status consistente
