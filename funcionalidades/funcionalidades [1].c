@@ -132,18 +132,26 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
         return;
     }
 
-    // --- Abertura e Validação do Arquivo de Índice ---
-    FILE *arquivoIndiceBin = fopen(nomeArquivoIndiceBin, "rb");
-    if(arquivoIndiceBin == NULL) {
-        printf("Falha no processamento do arquivo.\n");
-        fclose(arquivoDadosBin);
-        return;
-    }
-    
-    CabecalhoAB cabecalhoAB; 
-    arvoreb_lerCabecalhoBin(arquivoIndiceBin, &cabecalhoAB);
-    if (!arvoreb_gerenciaCabecalho(&cabecalhoAB, arquivoIndiceBin, 0, 1)) {
-        return;
+    int temArvoreB = 1;
+    if (nomeArquivoIndiceBin == NULL)
+        temArvoreB = 0;
+
+    // Só lidamos com o arquivo de índice se a árvore B existir.
+    FILE *arquivoIndiceBin = NULL;
+    CabecalhoAB cabecalhoAB;
+    if (temArvoreB) {
+        // --- Abertura e Validação do Arquivo de Índice ---
+        arquivoIndiceBin = fopen(nomeArquivoIndiceBin, "rb");
+        if(arquivoIndiceBin == NULL) {
+            printf("Falha no processamento do arquivo.\n");
+            fclose(arquivoDadosBin);
+            return;
+        }
+        
+        arvoreb_lerCabecalhoBin(arquivoIndiceBin, &cabecalhoAB);
+        if (!arvoreb_gerenciaCabecalho(&cabecalhoAB, arquivoIndiceBin, 0, 1)) {
+            return;
+        }
     }
 
     // --- Processamento de Buscas ---
@@ -160,8 +168,9 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
         
         // --- Decisão de Algoritmo ---
         
-        // Se a chave primária NÃO foi informada nos filtros de busca
-        if (codEstacao == -1) {
+        // Se a chave primária não foi informada nos filtros de busca OU se não tem árvore-B
+        // Vamos fazer o select tradicional
+        if (codEstacao == -1 || !temArvoreB) {
             // Delega a pesquisa para a funcionalidade [3] (Busca Sequencial)
             selectWhere(arquivoDadosBin, &busca);
             continue; 
@@ -198,5 +207,5 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
     
     // Fechamento dos arquivos 
     fclose(arquivoDadosBin);
-    fclose(arquivoIndiceBin);
+    if (temArvoreB) fclose(arquivoIndiceBin);
 }
