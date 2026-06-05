@@ -4,6 +4,7 @@
     #include "../registro/registro.h"
     #include "../fornecidas/fornecidas.h"
 
+
     // --- Structs para auxiliar contagem de estações e pares
     // nomeEstacao (nroEstacoes)
     typedef struct nodeNome {
@@ -51,7 +52,7 @@
     void utils_liberarUtils(NodeNome *headNomes, NodePares *headPares);
 
     // Função extremamente útil: recebe campos tratando strings e valores nulos
-    void utils_recebeCampos(Busca *busca, int nBuscas);
+    int utils_recebeCampos(Busca *busca);
 
     // Função extremamente útil 2: comparar registros com filtros
     int utils_compararRegistroComFiltros(Registro *registro, Busca *busca);

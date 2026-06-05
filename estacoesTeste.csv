@@ -1,0 +1,11 @@
+CodEstacao,NomeEstacao,CodLinha,NomeLinha,CodProxEst,DistanciaProxEst,CodLinhaInteg,CodEstacaoInteg
+190,Jardim Romano,12,Safira,191,1990,,
+144,Granja Julieta,9,Esmeralda,145,1700,,
+78,Moema,5,Lilas,79,1314,,
+29,Brigadeiro,2,Verde,30,1015,,
+150,Primavera-Interlagos,9,Esmeralda,151,1670,,
+183,Tatuape,12,Safira,184,8850,3,48
+95,Varzea Paulista,7,Rubi,96,5860,,
+164,Ribeirao Pires,10,Turquesa,165,4400,,
+179,Braz Cubas,11,Coral,180,3330,,
+127,Jardim Belval,8,Diamante,128,1200,,

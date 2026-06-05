@@ -28,7 +28,16 @@ int main() {
 
         case 3:
             scanf(" %s %d", arquivo1, &nBuscas);
-            selectWhere(arquivo1, nBuscas);
+
+            // Por causa da função selectWhereAB, a função selectWhere não precisa mais ser chamada aqui.
+            // selectWhere(arquivo1, nBuscas);
+
+            // A função selectWhereAB será responsável por chamá-la caso não haja o campo "codEstacao"
+            // entre os filtros de entrada :D
+        
+            // Por isso, chamaremos ela.
+            scanf(" %s %s %d", arquivo1, arquivo2, &nBuscas);
+            selectWhereAB(arquivo1, arquivo2, nBuscas);
             break;
 
         case 4:
@@ -44,6 +53,16 @@ int main() {
         case 6:
             scanf(" %s %d", arquivo1, &nBuscas);
             update(arquivo1, nBuscas);
+            break;
+
+        case 7:
+            scanf(" %s %s", arquivo1, arquivo2);
+            createIndex(arquivo1, arquivo2);
+            break;
+
+        case 8:
+            scanf(" %s %s %d", arquivo1, arquivo2, &nBuscas);
+            selectWhereAB(arquivo1, arquivo2, nBuscas);
             break;
     }
 

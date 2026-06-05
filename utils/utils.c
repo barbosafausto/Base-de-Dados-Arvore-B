@@ -126,6 +126,7 @@ void utils_contaNroEstacoesNroPares(Cabecalho *cabecalho, FILE *arquivoBin, int 
 }
 
 
+/*
 void utils_recebeCampos(Busca *busca, int nBuscas) {
 
     for (int i = 0; i < nBuscas; i++) {
@@ -158,8 +159,48 @@ void utils_recebeCampos(Busca *busca, int nBuscas) {
             }
         }
     }
-}
+}*/
 
+int utils_recebeCampos(Busca *busca){
+
+    int codEstacao = -1;
+
+    // Número de campos
+    scanf("%d", &busca->mCampos);
+    busca->campo = (Campo*) malloc(busca->mCampos * sizeof(Campo));
+
+    // Leitura dos campos
+    for (int i = 0; i < busca->mCampos; i++) {
+
+        // Nome do campo
+        scanf("%s", busca->campo[i].nomeCampo);        
+
+        // Campo string
+        if (strcmp(busca->campo[i].nomeCampo, "nomeEstacao") == 0 ||
+            strcmp(busca->campo[i].nomeCampo, "nomeLinha") == 0) {
+             
+                ScanQuoteString(busca->campo[i].valorString);
+                busca->campo[i].isString = 1;
+
+        }
+
+        // Campo int ou NULO
+        else {
+            
+            char valor[85];
+            scanf(" %s", valor);
+
+            busca->campo[i].valorInt = (strcmp(valor, "NULO") == 0) ? -1 : atoi(valor);
+            busca->campo[i].isString = 0;
+            
+            // Se for campo int ou NULO, vejo se é um codEstacao
+            if (strcmp(busca->campo[i].nomeCampo, "codEstacao") == 0)
+                codEstacao = busca->campo[i].valorInt;
+        }
+    }
+
+    return codEstacao;
+}
 
 int utils_compararRegistroComFiltros(Registro *registro, Busca *busca) {
 

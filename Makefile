@@ -10,13 +10,13 @@ CC = gcc
 CFLAGS = -fdiagnostics-color=always -g
 
 # .h
-HEADERS = fornecidas/fornecidas.h funcionalidades/funcionalidades.h registro/registro.h utils/utils.h
+HEADERS = fornecidas/fornecidas.h funcionalidades/funcionalidades.h registro/registro.h utils/utils.h arvoreb/arvoreb.h
 
 # Para o GCC: onde procurar pelos arquivos .h
-INCLUDES = -I./fornecidas -I./funcionalidades -I./registro -I./utils
+INCLUDES = -I./fornecidas -I./funcionalidades -I./registro -I./utils -I./arvoreb
 
 # .c
-SRC = main.c fornecidas/fornecidas.c funcionalidades/funcionalidades.c registro/registro.c utils/utils.c
+SRC = main.c fornecidas/fornecidas.c funcionalidades/funcionalidades\ [0].c funcionalidades/funcionalidades\ [1].c registro/registro.c utils/utils.c arvoreb/arvoreb.c
 
 
 # ----- Regras de Compilação -----
@@ -49,3 +49,7 @@ ZIP = entrega.zip
 zip:
 	@echo "Empacotando arquivos para submissão..."
 	zip -r $(ZIP) . -i \*.c \*.h \*Makefile
+
+# O comando 'debug' recompila o código e abre o GDB automatizado
+debug: all
+	gdb -x debug.gdb ./$(EXECUTAVEL)

@@ -29,7 +29,7 @@ void createTable(char *nomeArquivoCSV, char *nomeArquivoBin) {
     Cabecalho cabecalho;
     registro_initCabecalho(&cabecalho);
     
-    // Cabeçalho será escrita em arquivo
+    // Cabeçalho será escrito em arquivo
     registro_escreverCabecalhoBin(arquivoBin, &cabecalho);
 
     
@@ -136,62 +136,42 @@ void selectFromTable(char *nomeArquivoBin) {
 }
 
 // Funcionalidade [3] - Where
-// [3] Implementação da funcionalidade Select com Filtros 
-void selectWhere(char *nomeArquivoBin, int nBuscas) {
+// [3] Implementação da funcionalidade Select com Filtros // Atualizada!
+void selectWhere(FILE *arquivoBin, Busca *busca) {
 
-    // Abertura do arquivo
-    FILE *arquivoBin = fopen(nomeArquivoBin, "rb");
-    if(arquivoBin == NULL) {
-        printf("Falha no processamento do arquivo.\n");
-        return;
-    }
+    //O arquivo de dados fornecido já está aberto.
 
-    // Verificação de consistência
-    Cabecalho cabecalho; 
-    fread(&cabecalho.status, sizeof(char), 1, arquivoBin);
-    if (!registro_gerenciaCabecalho(&cabecalho, arquivoBin, 0, 1))
-        return;
+    // Não faremos verificação de consistência do arquivo, 
+    // pois já fizemos na função selecWhereAB, que chamou esta.
 
-    // Leitura dos campos que compõem os filtros da busca
-    Busca *busca = (Busca *) malloc(nBuscas * sizeof(Busca));
-    utils_recebeCampos(busca, nBuscas);
-
-    // Processamento das Buscas
-    for (int i = 0; i < nBuscas; i++) {
+    // Pular cabeçalho
+    fseek(arquivoBin, 17, SEEK_SET); 
         
-        // Pular cabeçalho
-        fseek(arquivoBin, 17, SEEK_SET); 
+    Registro registro;
+    int encontrouRegistro = 0;
+
+    // Leitura até EOF
+    while (registro_lerRegistroBin(arquivoBin, &registro) != -1) {
         
-        Registro registro;
-        int encontrouRegistro = 0;
+        // Pular registros removidos
+        // A função faz a checagem; ela só lê o registro inteiro se ele não estiver removido.
+        if (registro.removido == '1') continue; 
 
-        // Leitura até EOF
-        while (registro_lerRegistroBin(arquivoBin, &registro) != -1) {
-            
-            // Pular registros removidos
-            if (registro.removido == '1') continue; 
-
-            if (utils_compararRegistroComFiltros(&registro, &busca[i])) {
-                registro_imprimirRegistro(&registro);
-                encontrouRegistro = 1;
-            }
+        if (utils_compararRegistroComFiltros(&registro, busca)) {
+            registro_imprimirRegistro(&registro);
+            encontrouRegistro = 1;
         }
-
-        if (!encontrouRegistro) 
-            printf("Registro inexistente.\n");
-
-        // Formatação da saída
-        printf("\n");
-        
-        // Liberar memória dos filtros da busca atual
-        free(busca[i].campo); 
     }
-    
-    // Liberar memória do vetor de buscas
-    free(busca); 
 
-    // Fechamento do arquivo
-    fclose(arquivoBin);
+    if (!encontrouRegistro) 
+        printf("Registro inexistente.\n");
+
+    // Formatação da saída
+    printf("\n");
+    
+    // Liberar memória dos filtros da busca atual
+    for (int i = 0; i < busca->mCampos; i++)
+        free(busca[i].campo); 
 }
 
 
@@ -217,7 +197,7 @@ void deleteWhere(char *nomeArquivoBin, int nRemocoes) {
     
     // Recebimento dos campos que compõem os filtros de todas as remoções
     Busca *busca = (Busca*) malloc(nRemocoes * sizeof(Busca));
-    utils_recebeCampos(busca, nRemocoes);
+    // utils_recebeCampos(busca, nRemocoes);
     
     // Processamento das Remoções
     for (int i = 0; i < nRemocoes; i++) {
@@ -344,7 +324,7 @@ void update(char* nomeArquivoBin, int nAtualizacoes) {
 
     // Recebimento dos campos da busca que compõem (valores atualizados, filtros)
     Busca *busca = (Busca*) malloc(2*nAtualizacoes*sizeof(Busca));
-    utils_recebeCampos(busca, 2*nAtualizacoes);
+    //utils_recebeCampos(busca, 2*nAtualizacoes);
     
     //Todo busca[i], com i par, representa os valores de filtro da busca 
     //Todo busca[i], com i ímpar, representa os valores de atualização da busca 
