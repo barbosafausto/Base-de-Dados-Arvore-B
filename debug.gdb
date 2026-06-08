@@ -1,5 +1,5 @@
 # Define o breakpoint na função que está dando dor de cabeça
-b createIndex
+b insertInto 
 
 # Inicia a execução injetando o arquivo de teste
 run < teste.in
