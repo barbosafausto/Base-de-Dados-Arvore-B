@@ -170,8 +170,7 @@ void selectWhere(FILE *arquivoBin, Busca *busca) {
     printf("\n");
     
     // Liberar memória dos filtros da busca atual
-    for (int i = 0; i < busca->mCampos; i++)
-        free(busca[i].campo); 
+    free(busca->campo); 
 }
 
 
@@ -195,13 +194,14 @@ void deleteWhere(char *nomeArquivoBin, int nRemocoes) {
     if (!registro_gerenciaCabecalho(&cabecalho, arquivoBin, 0, 0))
         return;
     
-    // Recebimento dos campos que compõem os filtros de todas as remoções
-    Busca *busca = (Busca*) malloc(nRemocoes * sizeof(Busca));
-    // utils_recebeCampos(busca, nRemocoes);
-    
-    // Processamento das Remoções
     for (int i = 0; i < nRemocoes; i++) {
+
+        // Recebimento dos campos que compõem os filtros de todas as remoções
+        Busca busca;
+        utils_recebeCampos(&busca);
         
+        // Processamento das Remoções
+            
         // Pular cabeçalho
         fseek(arquivoBin, 17, SEEK_SET); 
         
@@ -215,12 +215,12 @@ void deleteWhere(char *nomeArquivoBin, int nRemocoes) {
             // Pular registros removidos
             if (registro.removido == '1') continue; 
 
-            if (utils_compararRegistroComFiltros(&registro, &busca[i])) 
+            if (utils_compararRegistroComFiltros(&registro, &busca)) 
                 registro_deletarRegistro(&registro, &cabecalho, arquivoBin, offsetAtual);
         }
         
         // Liberar memória dos filtros da busca atual
-        free(busca[i].campo); 
+        free(busca.campo);
     }
 
     // Recontagem do número de estações e pares.
@@ -230,9 +230,6 @@ void deleteWhere(char *nomeArquivoBin, int nRemocoes) {
     // O arquivo será fechado como consistente: status = 1
     registro_gerenciaCabecalho(&cabecalho, arquivoBin, 1, 0);
     
-    // Liberar memória da busca
-    free(busca); 
-
     // Fechamento do arquivo
     fclose(arquivoBin);
 
@@ -259,13 +256,13 @@ void insertInto(char *nomeArquivoBin, int nInsercoes) {
     if(!registro_gerenciaCabecalho(&cabecalho, arquivoBin, 0, 0))
         return;
     
-    // A função abaixo é uma caso específico da função recebeCampos:
     // Nesse caso, os campos compõem um registro
-    Registro *registros = (Registro*) malloc(nInsercoes * sizeof(Registro));
-    registro_lerRegistros(registros, nInsercoes);
-
     for (int i = 0; i < nInsercoes; i++) {
-        
+
+        //Leitura do registro
+        Registro registro;
+        registro_lerRegistro(&registro);
+
         //Inserção no topo da pilha
         if (cabecalho.topo != -1) {
 
@@ -275,7 +272,7 @@ void insertInto(char *nomeArquivoBin, int nInsercoes) {
 
             //Inserção do novo registro
             fseek(arquivoBin, - sizeof(int) - 1, SEEK_CUR);
-            registro_escreverRegistroBin(arquivoBin, &registros[i]);
+            registro_escreverRegistroBin(arquivoBin, &registro);
         }
         
         //Inserção no proxRRN
@@ -283,7 +280,7 @@ void insertInto(char *nomeArquivoBin, int nInsercoes) {
 
             //Inserção do novo registro
             fseek(arquivoBin, TAM_CABECALHO + cabecalho.proxRRN * TAM_REGISTRO, SEEK_SET);
-            registro_escreverRegistroBin(arquivoBin, &registros[i]);
+            registro_escreverRegistroBin(arquivoBin, &registro);
             cabecalho.proxRRN++;        
         }
     }
@@ -293,9 +290,6 @@ void insertInto(char *nomeArquivoBin, int nInsercoes) {
 
     // Escrevendo cabecalho e setando como consistente 
     registro_gerenciaCabecalho(&cabecalho, arquivoBin, 1, 0);
-    
-    // Liberação do vetor de registros
-    free(registros);
 
     // Fechamento do arquivo
     fclose(arquivoBin);
@@ -322,18 +316,18 @@ void update(char* nomeArquivoBin, int nAtualizacoes) {
     if(!registro_gerenciaCabecalho(&cabecalho, arquivoBin, 0, 0))
         return;
 
-    // Recebimento dos campos da busca que compõem (valores atualizados, filtros)
-    Busca *busca = (Busca*) malloc(2*nAtualizacoes*sizeof(Busca));
-    //utils_recebeCampos(busca, 2*nAtualizacoes);
-    
-    //Todo busca[i], com i par, representa os valores de filtro da busca 
-    //Todo busca[i], com i ímpar, representa os valores de atualização da busca 
-
     for (int i = 0; i < 2*nAtualizacoes; i += 2) {
+
+        //Recebimento dos filtros e valores
+        Busca filtros, valores;
+        utils_recebeCampos(&filtros);
+        utils_recebeCampos(&valores);
+        
         
         // Pular cabeçalho
         fseek(arquivoBin, 17, SEEK_SET); 
         
+        // Registros que serão lidos e reescritos
         Registro registro;
 
         int offsetAtual = 17;
@@ -344,14 +338,14 @@ void update(char* nomeArquivoBin, int nAtualizacoes) {
             // Pular registros removidos
             if (registro.removido == '1') continue; 
 
-            if (utils_compararRegistroComFiltros(&registro, &busca[i])) {
-                utils_atualizarRegistroComFiltros(busca[i+1], arquivoBin, offsetAtual);
+            if (utils_compararRegistroComFiltros(&registro, &filtros)) {
+                utils_atualizarRegistroComFiltros(valores, arquivoBin, offsetAtual);
             }
         }
         
-        // Liberar memória dos filtros da busca atual
-        free(busca[i].campo); // filtros
-        free(busca[i+1].campo); // atualizações
+        // Liberar memória do update atual
+        free(filtros.campo); // filtros
+        free(valores.campo); // atualizações
     }
 
     // ---- Arquivo será fechado: status consistente
@@ -360,9 +354,6 @@ void update(char* nomeArquivoBin, int nAtualizacoes) {
     cabecalho.status = '1';
     fseek(arquivoBin, 0, SEEK_SET);
     fwrite(&cabecalho.status, sizeof(char), 1, arquivoBin);
-
-    // Liberando alocação da busca
-    free(busca);
 
     // Fechamento do Arquivo
     fclose(arquivoBin);

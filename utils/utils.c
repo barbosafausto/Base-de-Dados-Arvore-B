@@ -173,7 +173,7 @@ int utils_recebeCampos(Busca *busca){
     for (int i = 0; i < busca->mCampos; i++) {
 
         // Nome do campo
-        scanf("%s", busca->campo[i].nomeCampo);        
+        scanf(" %s", busca->campo[i].nomeCampo);        
 
         // Campo string
         if (strcmp(busca->campo[i].nomeCampo, "nomeEstacao") == 0 ||

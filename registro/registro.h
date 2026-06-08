@@ -68,6 +68,6 @@
     void registro_deletarRegistro(Registro *registro, Cabecalho *cabecalho, FILE *arquivoBin, int offsetAtual);
 
     // Lê n registros da entrada e coloca todos em structs
-    void registro_lerRegistros(Registro *registros, int nRegistros);
+    void registro_lerRegistro(Registro *registros);
 
 #endif 

@@ -244,50 +244,49 @@ void registro_deletarRegistro(Registro *registro, Cabecalho *cabecalho, FILE *ar
 }    
 
 
-void registro_lerRegistros(Registro *registros, int nRegistros) {
 
-    for (int i = 0; i < nRegistros; i++) {
+void registro_lerRegistro(Registro *registro) {
 
-        // 100 bytes: comprimento seguro, visto que um registro tem 80 bytes
-        char valor[85];
-        int valorInt; 
 
-        registros[i].removido = '0';
-        registros[i].proximo = -1;
+    // 100 bytes: comprimento seguro, visto que um registro->tem 80 bytes
+    char valor[85];
+    int valorInt; 
+
+    registro->removido = '0';
+    registro->proximo = -1;
+    
+    for (int j = 0; j < 8; j++) { 
+
+        // String
+        if (j == 1 || j == 3) 
+            ScanQuoteString(valor);
+
+        // Int
+        else {
+            scanf(" %s", valor);
+            valorInt = (strcmp(valor, "NULO") == 0) ? -1 : atoi(valor);
+        }
         
-        for (int j = 0; j < 8; j++) { 
+    //Inserção dos dados no registro
+    if (j == 0)      registro->codEstacao = valorInt;
 
-            // String
-            if (j == 1 || j == 3) 
-                ScanQuoteString(valor);
-
-            // Int
-            else {
-                scanf(" %s", valor);
-                valorInt = (strcmp(valor, "NULO") == 0) ? -1 : atoi(valor);
-            }
-            
-        //Inserção dos dados no registro
-        if (j == 0)      registros[i].codEstacao = valorInt;
-
-        else if (j == 1) {
-            
-            strcpy(registros[i].nomeEstacao, valor);
-            registros[i].tamNomeEstacao = strlen(valor);
-        }
-        else if (j == 2) registros[i].codLinha = valorInt;
-
-        else if (j == 3) {
-
-            strcpy(registros[i].nomeLinha, valor);
-            registros[i].tamNomeLinha = strlen(valor);
-        }
-
-        else if (j == 4) registros[i].codProxEstacao = valorInt;
-        else if (j == 5) registros[i].distProxEstacao = valorInt;
-        else if (j == 6) registros[i].codLinhaIntegra = valorInt;
-        else             registros[i].codEstIntegra = valorInt;
+    else if (j == 1) {
         
-        }
+        strcpy(registro->nomeEstacao, valor);
+        registro->tamNomeEstacao = strlen(valor);
+    }
+    else if (j == 2) registro->codLinha = valorInt;
+
+    else if (j == 3) {
+
+        strcpy(registro->nomeLinha, valor);
+        registro->tamNomeLinha = strlen(valor);
+    }
+
+    else if (j == 4) registro->codProxEstacao = valorInt;
+    else if (j == 5) registro->distProxEstacao = valorInt;
+    else if (j == 6) registro->codLinhaIntegra = valorInt;
+    else             registro->codEstIntegra = valorInt;
+    
     }
 }

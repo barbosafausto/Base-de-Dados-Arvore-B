@@ -52,7 +52,6 @@ int main() {
          * Recupera registros que satisfaçam um ou mais critérios de busca.
          */
         case 3:
-            scanf(" %s %d", arquivo1, &nBuscas);
 
             // Por causa da função selectWhereAB, a função selectWhere não precisa mais ser chamada aqui.
             // selectWhere(arquivo1, nBuscas);
@@ -61,7 +60,7 @@ int main() {
             // entre os filtros de entrada :D
         
             // Por isso, chamaremos ela.
-            scanf(" %s %s %d", arquivo1, NULL, &nBuscas);
+            scanf(" %s %d", arquivo1, &nBuscas);
             selectWhereAB(arquivo1, NULL, nBuscas);
             break;
 
