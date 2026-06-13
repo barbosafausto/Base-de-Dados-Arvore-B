@@ -3,11 +3,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Usando listas encadeadas para armazenar estações e pares de estações já vistos,
-// para evitar que os valores estejam duplicados.
+/* ========================================================================== *
+ * LISTAS ENCADEADAS E GERENCIAMENTO DE MEMÓRIA                               *
+ * ========================================================================== */
 
-// Dessa forma, mesmo que o arquivo CSV seja muito grande, a memória usada para armazenar
-// os nomes e pares de estações será relativamente pequena.
+/**
+ * @brief Adiciona o nome de uma estação a uma lista encadeada, garantindo unicidade.
+ * Dessa forma, mesmo que o arquivo CSV seja muito grande, a memória usada para armazenar
+ * os nomes das estações será relativamente pequena, evitando dados duplicados na RAM.
+ * @param head Ponteiro duplo para a cabeça da lista de nomes de estações.
+ * @param nome String contendo o nome da estação a ser avaliada/inserida.
+ * @return int 1 se a estação era inédita e foi inserida; 0 se já existia ou era inválida/nula.
+ */
 int utils_adicionarEstacaoUnica(NodeNome **head, char *nome) {
 
     if(nome == NULL || nome[0] == '\0' || strcmp(nome, "NULO") == 0) return 0;
@@ -32,10 +39,16 @@ int utils_adicionarEstacaoUnica(NodeNome **head, char *nome) {
     novo->prox = *head; // Insere no início (mais fácil, já tem o head e não precisa de ordem)
     *head = novo;
 
-    return 1; // Estação não existe
+    return 1; // Estação não existe e foi inserida
 }
 
-
+/**
+ * @brief Adiciona um par de estações (origem/destino) à lista, ignorando a ordem bidirecional.
+ * @param head Ponteiro duplo para a cabeça da lista de pares.
+ * @param cod1 Código inteiro da primeira estação.
+ * @param cod2 Código inteiro da segunda estação.
+ * @return int 1 se o par for inédito e adicionado; 0 se já existir ou for inválido.
+ */
 int utils_adicionarParUnico(NodePares **head, int cod1, int cod2) {
 
     // Verifica se já existe
@@ -64,18 +77,22 @@ int utils_adicionarParUnico(NodePares **head, int cod1, int cod2) {
     novo->prox = *head; // Insere no início
     *head = novo;
 
-    return 1; // Par não existe
+    return 1; // Par não existe e foi inserido
 }
 
-
+/**
+ * @brief Percorre e desaloca da memória RAM todos os nós das listas de controle de unicidade.
+ * @param headNomes Cabeça da lista encadeada de strings.
+ * @param headPares Cabeça da lista encadeada de pares inteiros.
+ */
 void utils_liberarUtils(NodeNome *headNomes, NodePares *headPares) {
     // Libera lista de nomes
     NodeNome *curNomes = headNomes;
     while(curNomes != NULL) {
         NodeNome *temp = curNomes;
         curNomes = curNomes->prox;
-        free(temp->nome); // Libera a string alocada
-        free(temp); // Libera o nó
+        free(temp->nome); // Libera a string alocada por strdup
+        free(temp);       // Libera o nó
     }
 
     // Libera lista de pares
@@ -88,18 +105,30 @@ void utils_liberarUtils(NodeNome *headNomes, NodePares *headPares) {
 }
 
 
+/* ========================================================================== *
+ * MÉTRICAS E RECONTAGEM                                                      *
+ * ========================================================================== */
+
+/**
+ * @brief Varre o arquivo binário recalculando a métrica de pares e, opcionalmente, estações.
+ * Usado ativamente após deleções ou inserções em lote para estabilizar o cabeçalho.
+ * @param cabecalho Ponteiro para a struct do cabeçalho que terá suas métricas sobrescritas.
+ * @param arquivoBin Descritor de arquivo aberto.
+ * @param Delete Flag booleana: 1 se for chamado após deleções (reconta nomes); 0 se após inserções.
+ */
 void utils_contaNroEstacoesNroPares(Cabecalho *cabecalho, FILE *arquivoBin, int Delete) {
 
-    //Volta cursor para o início, pós cabeçalho
+    // Volta cursor para o início, pós cabeçalho
     fseek(arquivoBin, 17, SEEK_SET);
 
     int nroEstacoes = 0;
     int nroParesEstacao = 0;
 
-    //Enquanto não alcançar o fim do arquivo
+    // Enquanto não alcançar o fim do arquivo
     Registro *registro = (Registro*) malloc(sizeof(Registro));
     NodeNome *n_head = NULL;
     NodePares *p_head = NULL;
+    
     while(registro_lerRegistroBin(arquivoBin, registro) != -1) {
 
         if (registro->removido == '1') continue;
@@ -126,41 +155,16 @@ void utils_contaNroEstacoesNroPares(Cabecalho *cabecalho, FILE *arquivoBin, int 
 }
 
 
-/*
-void utils_recebeCampos(Busca *busca, int nBuscas) {
+/* ========================================================================== *
+ * TRATAMENTO DE FILTROS E BUSCAS                                             *
+ * ========================================================================== */
 
-    for (int i = 0; i < nBuscas; i++) {
-
-        // Número de campos
-        scanf("%d", &busca[i].mCampos);
-        busca[i].campo = (Campo*) malloc(busca[i].mCampos * sizeof(Campo));
-
-        // Leitura dos campos
-        for (int j = 0; j < busca[i].mCampos; j++) {
-            scanf("%s", busca[i].campo[j].nomeCampo);
-
-            // Campo string
-            if (strcmp(busca[i].campo[j].nomeCampo, "nomeEstacao") == 0 ||
-                strcmp(busca[i].campo[j].nomeCampo, "nomeLinha") == 0) {
-                 
-                    ScanQuoteString(busca[i].campo[j].valorString);
-                    busca[i].campo[j].isString = 1;
-
-            } 
-            
-            // Campo int ou NULO
-            else {
-                
-                char valor[85];
-                scanf(" %s", valor);
-
-                busca[i].campo[j].valorInt = (strcmp(valor, "NULO") == 0) ? -1 : atoi(valor);
-                busca[i].campo[j].isString = 0;
-            }
-        }
-    }
-}*/
-
+/**
+ * @brief Lê a quantidade e o formato dos filtros da entrada padrão (STDIN).
+ * Popula dinamicamente a estrutura de Busca e identifica se a chave primária foi acionada.
+ * @param busca Ponteiro para a estrutura genérica de busca que sofrerá malloc nos campos.
+ * @return int Retorna o 'codEstacao' se ele constar entre os filtros, caso contrário retorna -1.
+ */
 int utils_recebeCampos(Busca *busca){
 
     int codEstacao = -1;
@@ -183,7 +187,6 @@ int utils_recebeCampos(Busca *busca){
                 busca->campo[i].isString = 1;
 
         }
-
         // Campo int ou NULO
         else {
             
@@ -202,6 +205,12 @@ int utils_recebeCampos(Busca *busca){
     return codEstacao;
 }
 
+/**
+ * @brief Analisa se as propriedades de um registro combinam com TODOS os critérios da busca (AND).
+ * @param registro O registro lido em disco a ser testado.
+ * @param busca O pacote de parâmetros de filtro.
+ * @return int 1 se passar em todos os filtros; 0 se não atender a algum critério.
+ */
 int utils_compararRegistroComFiltros(Registro *registro, Busca *busca) {
 
     for (int i = 0; i < busca->mCampos; i++) {
@@ -231,13 +240,10 @@ int utils_compararRegistroComFiltros(Registro *registro, Busca *busca) {
             int tamValorRegistro;
 
             if (strcmp(campo->nomeCampo, "nomeEstacao") == 0) {
-
                 valorRegistro = registro->nomeEstacao;
                 tamValorRegistro = registro->tamNomeEstacao;
             } 
-            
             else if (strcmp(campo->nomeCampo, "nomeLinha") == 0) {
-
                 valorRegistro = registro->nomeLinha;
                 tamValorRegistro = registro->tamNomeLinha;
             }
@@ -257,13 +263,22 @@ int utils_compararRegistroComFiltros(Registro *registro, Busca *busca) {
         }
         
         if (!atendeCriterio) return 0; // Se não atender a nenhum dos filtros
-
     }
 
     return 1; // Passou nos filtros
 }
 
 
+/* ========================================================================== *
+ * ATUALIZAÇÃO DE REGISTROS (UPDATE)                                          *
+ * ========================================================================== */
+
+/**
+ * @brief Sobrescreve campos de um registro físico específico do arquivo.
+ * @param busca A estrutura preenchida com as chaves e valores a serem injetados.
+ * @param arquivoBin O arquivo de dados em aberto.
+ * @param offsetAtual O cursor do laço exterior (apontando para o byte após o fim deste registro).
+ */
 void utils_atualizarRegistroComFiltros(Busca busca, FILE *arquivoBin, int offsetAtual) {
 
     int offsetRegistro = offsetAtual - 80;
@@ -272,34 +287,30 @@ void utils_atualizarRegistroComFiltros(Busca busca, FILE *arquivoBin, int offset
     fseek(arquivoBin, offsetRegistro, SEEK_SET);
     registro_lerRegistroBin(arquivoBin, &registro);
 
+    Campo *campo = busca.campo;
+
     for (int j = 0; j < busca.mCampos; j++) {
 
-        //Agora, vamos atualizar o registro
-        if      (strcmp(busca.campo[j].nomeCampo, "codEstacao") == 0)      registro.codEstacao = busca.campo[j].valorInt;
-        else if (strcmp(busca.campo[j].nomeCampo, "codLinha") == 0)        registro.codLinha = busca.campo[j].valorInt;
-        else if (strcmp(busca.campo[j].nomeCampo, "codProxEstacao") == 0)  registro.codProxEstacao = busca.campo[j].valorInt;
-        else if (strcmp(busca.campo[j].nomeCampo, "distProxEstacao") == 0) registro.distProxEstacao = busca.campo[j].valorInt; 
-        else if (strcmp(busca.campo[j].nomeCampo, "codLinhaIntegra") == 0) registro.codLinhaIntegra = busca.campo[j].valorInt;
-        else if (strcmp(busca.campo[j].nomeCampo, "codEstIntegra") == 0)   registro.codEstIntegra = busca.campo[j].valorInt;
+        // Agora, vamos atualizar o registro
+        if      (strcmp(campo[j].nomeCampo, "codEstacao") == 0)      registro.codEstacao = campo[j].valorInt;
+        else if (strcmp(campo[j].nomeCampo, "codLinha") == 0)        registro.codLinha = campo[j].valorInt;
+        else if (strcmp(campo[j].nomeCampo, "codProxEstacao") == 0)  registro.codProxEstacao = campo[j].valorInt;
+        else if (strcmp(campo[j].nomeCampo, "distProxEstacao") == 0) registro.distProxEstacao = campo[j].valorInt; 
+        else if (strcmp(campo[j].nomeCampo, "codLinhaIntegra") == 0) registro.codLinhaIntegra = campo[j].valorInt;
+        else if (strcmp(campo[j].nomeCampo, "codEstIntegra") == 0)   registro.codEstIntegra = campo[j].valorInt;
         
-        else if      (strcmp(busca.campo[j].nomeCampo, "nomeLinha") == 0) {
-
-            strcpy(registro.nomeEstacao, busca.campo[j].valorString);           
+        else if (strcmp(campo[j].nomeCampo, "nomeEstacao") == 0) {
+            strcpy(registro.nomeEstacao, campo[j].valorString);           
             registro.tamNomeEstacao = strlen(registro.nomeEstacao);
         }
 
-        else if (strcmp(busca.campo[j].nomeCampo, "codLinha") == 0) {
-            
-            strcpy(registro.nomeLinha, busca.campo[j].valorString);           
+        else if (strcmp(campo[j].nomeCampo, "nomeLinha") == 0) {
+            strcpy(registro.nomeLinha, campo[j].valorString);           
             registro.tamNomeLinha = strlen(registro.nomeLinha);
-
         }
     }
 
-    //Agora é só escrever o registro :D
+    // Agora é só escrever o registro :D
     fseek(arquivoBin, offsetRegistro, SEEK_SET);
     registro_escreverRegistroBin(arquivoBin, &registro);
-
-    //Não precisa dar fseek porque a última escrita posicionou a leitora na posição correta
-    //fseek(arquivoBin, offsetAtual, SEEK_SET);
 }

@@ -1,18 +1,26 @@
 #ifndef UTILS_H
-    #define UTILS_H
+#define UTILS_H
 
     #include "../registro/registro.h"
     #include "../fornecidas/fornecidas.h"
 
+    /* ========================================================================== *
+     * ESTRUTURAS DE DADOS: MÉTRICAS E CONTROLE DE UNICIDADE                      *
+     * ========================================================================== */
 
-    // --- Structs para auxiliar contagem de estações e pares
-    // nomeEstacao (nroEstacoes)
+    /**
+     * @brief Nó de lista encadeada para controle de unicidade do nomeEstacao.
+     * Auxilia na contagem do campo 'nroEstacoes' do cabeçalho sem lotar a RAM.
+     */
     typedef struct nodeNome {
         char *nome;
         struct nodeNome *prox;
     } NodeNome;
 
-    // paresEstacao (nroParesEstacao)
+    /**
+     * @brief Nó de lista encadeada para controle de unicidade de pares de estações.
+     * Auxilia na contagem do campo 'nroParesEstacao' do cabeçalho de forma bidirecional.
+     */
     typedef struct nodePares {
         int cod1;
         int cod2;
@@ -20,44 +28,59 @@
     } NodePares;
 
 
-    // --- Structs para auxiliar na funcionalidade de busca com campos
-    // Campos valorString e valorInt para diferenciar entre leitura com aspas ("") e leitura de NULO ou números.
-    // isString serve pra facilitar na hora da comparação.
+    /* ========================================================================== *
+     * ESTRUTURAS DE DADOS: FILTROS E BUSCAS                                      *
+     * ========================================================================== */
+
+    /**
+     * @brief Estrutura que representa um único critério/campo de busca.
+     * Diferencia internamente strings com aspas, valores inteiros numéricos e valores NULO.
+     */
     typedef struct {
         char nomeCampo[20];
         char valorString[64];
         int valorInt;
-        int isString; // 1 - String, 0 - Int ou NULO
+        int isString; // Flag: 1 para String, 0 para Inteiro ou NULO
     } Campo;
 
-    // Struct para ajudar na leitura de todas as n buscas, seja seleção, remoção ou atualização.
+    /**
+     * @brief Estrutura agregadora que armazena um lote de campos de busca.
+     * Centraliza a leitura das condições WHERE e SET nas funcionalidades.
+     */
     typedef struct {
-        int mCampos;
-        Campo *campo;
+        int mCampos;    // Quantidade de filtros/campos exigidos na operação
+        Campo *campo;   // Vetor dinâmico contendo as propriedades de cada filtro
     } Busca;
 
 
-    //  --- Funções auxiliares
+    /* ========================================================================== *
+     * PROTÓTIPOS: GERENCIAMENTO DE LISTAS (CONTADORES ÚNICOS)                    *
+     * ========================================================================== */
 
-    // Incrementa nroEstacoes se a atual for única
+    // Incrementa a métrica virtual inserindo a estação apenas se for inédita.
     int utils_adicionarEstacaoUnica(NodeNome **head, char *nome);
 
-    // Incrementa o nroParesEstacoes se o códigos atuais forem únicos e não-nulos
+    // Incrementa a métrica virtual inserindo o par bidirecional se for inédito e não nulo.
     int utils_adicionarParUnico(NodePares **head, int cod1, int cod2);
 
-    // Percorre o arquivo nas função Insert e Delete para atualizar o nroEstacoes e nroParesEstacoes
+    // Varre o arquivo binário para estabilizar as métricas do cabeçalho após mutações.
     void utils_contaNroEstacoesNroPares(Cabecalho *cabecalho, FILE *arquivoBin, int Delete);
 
-    // Liberação da memória alocada para contar as estações e os pares 
+    // Realiza a limpeza de memória profunda (Heap) de todos os nós das listas auxiliares.
     void utils_liberarUtils(NodeNome *headNomes, NodePares *headPares);
 
-    // Função extremamente útil: recebe campos tratando strings e valores nulos
+
+    /* ========================================================================== *
+     * PROTÓTIPOS: MOTOR DE BUSCA E ATUALIZAÇÃO                                   *
+     * ========================================================================== */
+
+    // Instancia o pacote de busca lendo e interpretando os tipos de dados da STDIN.
     int utils_recebeCampos(Busca *busca);
 
-    // Função extremamente útil 2: comparar registros com filtros
+    // Motor de comparação estrita (AND lógico) entre um registro físico e os critérios do usuário.
     int utils_compararRegistroComFiltros(Registro *registro, Busca *busca);
 
-    // Atualiza registro com base nos filtros da funcionalidade "update"
+    // Executa a injeção física de dados específicos sobre um registro já validado.
     void utils_atualizarRegistroComFiltros(Busca busca, FILE *arquivoBin, int offsetAtual);
 
 #endif
