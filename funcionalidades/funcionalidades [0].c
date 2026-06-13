@@ -42,26 +42,26 @@ void createTable(char *nomeArquivoCSV, char *nomeArquivoBin) {
     char linha[200];
     Registro registro;
 
-    // Listas encadeadas auxiliares para garantir a unicidade na contagem exigida pelo cabeçalho
+    // Listas encadeadas auxiliares para auxiliar na contagem exigida pelo cabeçalho
     NodeNome *listaNomes = NULL; 
     NodePares *listaPares = NULL; 
     
-    // Pula a primeira linha do CSV (nomes das colunas/metadados)
+    // Pula a primeira linha do CSV (nomes das colunas)
     fgets(linha, sizeof(linha), arquivoCSV); 
 
-    // Loop de extração: lê até encontrar o End Of File (EOF)
+    // Loop de processamento: lê até encontrar o End Of File (EOF)
     while(fgets(linha, sizeof(linha), arquivoCSV) != NULL) {
         
-        // Tratamento de linhas vazias (precaução contra quebras de linha fantasmas no final do arquivo)
+        // Tratamento de linhas vazias (precaução)
         if(linha[0] == '\n' || linha[0] == '\r' || linha[0] == '\0') continue; 
 
-        // Higienização da string: substitui o Carriage Return / Line Feed pelo terminador nulo
+        // Organização da string: substitui o "\r\n" pelo terminador '\0'
         linha[strcspn(linha, "\r\n")] = '\0'; 
 
-        // Fatiamento (tokenização) da linha e formatação da struct de registro
+        // Processamento da linha para compor o registro atual
         registro_processaCSV(&registro, linha);
 
-        // Escrita do registro formatado no disco (exatos 80 bytes)
+        // Escrita do registro formatado no disco 
         registro_escreverRegistroBin(arquivoBin, &registro);
 
         // Atualização de Métricas: Contagem de Estações Únicas
@@ -81,7 +81,7 @@ void createTable(char *nomeArquivoCSV, char *nomeArquivoBin) {
     }
 
     // --- Finalização ---
-    // Atualiza a flag de consistência para '1' (estável) e regrava o cabeçalho finalizado
+    // Atualiza a flag de consistência para '1' (estável) e grava o cabeçalho finalizado
     registro_gerenciaCabecalho(&cabecalho, arquivoBin, 1, 0);
 
     fclose(arquivoCSV);
@@ -119,15 +119,16 @@ void selectFromTable(char *nomeArquivoBin) {
         return;
     
     // Posiciona o cursor de leitura do disco após os 17 bytes iniciais (Cabeçalho)
-    fseek(arquivoBin, 17, SEEK_SET); 
+    fseek(arquivoBin, TAM_CABECALHO, SEEK_SET); 
 
     // --- Leitura e Impressão Sequencial ---
     Registro registro;
     int statusLeitura;
-    int existeRegistro = 0; // Flag para controlar se a base de dados está completamente vazia
+    int existeRegistro = 0; // Flag para controlar se algum registro foi selecionado
 
     // O loop avança de 80 em 80 bytes até o final do arquivo
     while ((statusLeitura = registro_lerRegistroBin(arquivoBin, &registro)) != -1) {
+        
         // Status 1 indica que o registro foi lido com sucesso e NÃO está logicamente removido
         if (statusLeitura == 1) {
             registro_imprimirRegistro(&registro);
@@ -150,8 +151,7 @@ void selectFromTable(char *nomeArquivoBin) {
 
 /**
  * @brief Funcionalidade [3]: Recupera registros que satisfazem parâmetros de busca específicos.
- * O arquivo binário já deve vir aberto, pois esta função pode ser chamada como fallback
- * por outras rotinas maiores (ex: Funcionalidade 8).
+ * O arquivo binário já deve vir aberto, pois esta função será chamada pela função selectWhereAB (funcionalidade 8)
  * * @param arquivoBin Ponteiro do descritor de arquivo aberto.
  * @param busca Estrutura contendo os filtros exigidos pelo usuário.
  */
@@ -162,7 +162,7 @@ void selectWhere(FILE *arquivoBin, Busca *busca) {
     // pois já fizemos na função selecWhereAB, que chamou esta.
 
     // Posiciona o cursor para o primeiro registro de dados
-    fseek(arquivoBin, 17, SEEK_SET); 
+    fseek(arquivoBin, TAM_CABECALHO, SEEK_SET); 
         
     Registro registro;
     int encontrouRegistro = 0;
@@ -170,7 +170,7 @@ void selectWhere(FILE *arquivoBin, Busca *busca) {
     // --- Varredura Linear de Busca (O(n)) ---
     while (registro_lerRegistroBin(arquivoBin, &registro) != -1) {
         
-        // Registros logicamente apagados não devem participar da busca.
+        // Registros logicamente removidos não devem participar da busca.
         // A função de leitura faz a checagem preliminar; ela só lê o registro 
         // inteiro se ele não estiver com o bit de removido setado.
         if (registro.removido == '1') continue; 
@@ -188,7 +188,7 @@ void selectWhere(FILE *arquivoBin, Busca *busca) {
     // Formatação da saída para delimitar encerramento da operação
     printf("\n");
     
-    // Limpeza mandatória para evitar vazamento de memória do array de filtros
+    // Free para evitar vazamento de memória do array de filtros
     free(busca->campo); 
 }
 
@@ -205,7 +205,7 @@ void selectWhere(FILE *arquivoBin, Busca *busca) {
  */
 void deleteWhere(char *nomeArquivoBin, int nRemocoes) {
 
-    // --- Abertura em Modo Misto (Leitura e Atualização Binária) ---
+    // --- Abertura em Modo de Leitura e Escrita Binária ---
     FILE *arquivoBin = fopen(nomeArquivoBin, "rb+");
     if(arquivoBin == NULL) {
         printf("Falha no processamento do arquivo.\n");
@@ -220,15 +220,16 @@ void deleteWhere(char *nomeArquivoBin, int nRemocoes) {
     if (!registro_gerenciaCabecalho(&cabecalho, arquivoBin, 0, 0))
         return;
     
-    // Executa as baterias de deleção solicitadas
+    // Executa as deleções solicitadas
+    // Dessa vez só estamos guardando uma busca por vez na RAM :D
     for (int i = 0; i < nRemocoes; i++) {
 
-        // Extrai os filtros da STDIN (teclado/casos de teste)
+        // Recebe os filtros da entrada
         Busca busca;
         utils_recebeCampos(&busca);
             
         // Reseta o cursor de leitura para o topo dos registros a cada nova busca
-        fseek(arquivoBin, 17, SEEK_SET); 
+        fseek(arquivoBin, TAM_CABECALHO, SEEK_SET); 
         
         Registro registro;
         int offsetAtual = TAM_CABECALHO;
@@ -239,16 +240,17 @@ void deleteWhere(char *nomeArquivoBin, int nRemocoes) {
             // Seguimos em frente para o próximo registro
             offsetAtual += TAM_REGISTRO;
 
+            // Se for removido, ignora
             if (registro.removido == '1') continue; 
 
-            // Se for um alvo, aplica a deleção física da chave (tombstone) e gerencia a lista invertida
+            // Se der match com os filtros, aplica a deleção lógica e gerencia a pilha de remoções
             if (utils_compararRegistroComFiltros(&registro, &busca)) 
                 registro_deletarRegistro(&registro, &cabecalho, arquivoBin, offsetAtual);
             
             
         }
         
-        // Descarta filtros processados para liberar a memória Heap
+        // Libera os filtros processados para liberar memória heap
         free(busca.campo);
     }
 
@@ -271,14 +273,14 @@ void deleteWhere(char *nomeArquivoBin, int nRemocoes) {
 
 /**
  * @brief Funcionalidade [5]: Insere novos registros na base de dados.
- * Otimiza o armazenamento consumindo (em O(1)) RRNs do topo da pilha de removidos
- * antes de expandir o arquivo (EOF).
+ * Otimiza o armazenamento consumindo RRNs do topo da pilha de removidos
+ * antes de expandir o arquivo.
  * * @param nomeArquivoBin Nome do arquivo binário.
  * @param nInsercoes Quantidade de registros a serem inseridos.
  */
 void insertInto(char *nomeArquivoBin, int nInsercoes) {
 
-    // --- Abertura Mista ---
+    // --- Abertura para Leitura e Escrita ---
     FILE *arquivoBin = fopen(nomeArquivoBin, "rb+");
     if(arquivoBin == NULL) {
         printf("Falha no processamento do arquivo.\n");
@@ -288,18 +290,18 @@ void insertInto(char *nomeArquivoBin, int nInsercoes) {
     Cabecalho cabecalho;
     registro_lerCabecalho(arquivoBin, &cabecalho);
     
-    // Flag de inconsistência acionada preventivamente
+    // Flag de inconsistência acionada, pois o arquivo foi aberto para escrita
     if(!registro_gerenciaCabecalho(&cabecalho, arquivoBin, 0, 0))
         return;
     
     // Processamento das requisições
     for (int i = 0; i < nInsercoes; i++) {
 
-        // Parse e carregamento do novo registro para a RAM
+        // Leitura e carregamento do novo registro para a RAM
         Registro registro;
         registro_lerRegistro(&registro);
 
-        // --- Estratégia de Fragmentação: Reutilização da Pilha (Worst-Fit Lógico) ---
+        // --- Aproveitamento de Espaço: Pilha ---
         if (cabecalho.topo != -1) {
 
             // Salto físico para o offset absoluto do nó removido
@@ -308,24 +310,27 @@ void insertInto(char *nomeArquivoBin, int nInsercoes) {
             // O RRN que assumirá a cabeça da pilha foi guardado nos 4 bytes subsequentes
             fread(&cabecalho.topo, sizeof(int), 1, arquivoBin);
 
-            // Retorna o cursor para o byte incial do registro (status de remoção) para sobreposição total
+            // Retorna o cursor para o byte inicial do registro (status de remoção) para sobreposição total
             fseek(arquivoBin, - sizeof(int) - 1, SEEK_CUR);
             registro_escreverRegistroBin(arquivoBin, &registro);
         }
-        // --- Estratégia de Fragmentação: Append Sequencial (Fim do Arquivo) ---
+
+        // --- Não tem registros removidos: inserção no fim do arquivo) ---
         else {
 
-            // Posicionamento direto no RRN virgem e atualização de métrica de controle
+            // Posicionamento direto no novo RRN 
             fseek(arquivoBin, TAM_CABECALHO + cabecalho.proxRRN * TAM_REGISTRO, SEEK_SET);
             registro_escreverRegistroBin(arquivoBin, &registro);
+
+            // Atualização do controle no cabeçalho
             cabecalho.proxRRN++;        
         }
     }
 
-    // Varredura para reestabelecer as restrições globais de unicidade para o cabeçalho
+    // Varredura para manter o cabeçalho atualizado
     utils_contaNroEstacoesNroPares(&cabecalho, arquivoBin, 0);
 
-    // Commit da transação setando o sistema para consistente novamente
+    // Setando o sistema para consistente novamente
     registro_gerenciaCabecalho(&cabecalho, arquivoBin, 1, 0);
 
     fclose(arquivoBin);
@@ -347,32 +352,33 @@ void insertInto(char *nomeArquivoBin, int nInsercoes) {
  */
 void update(char* nomeArquivoBin, int nAtualizacoes) {
 
-    // --- Abertura Mista ---
+    // --- Abertura para Leitura e Escrita ---
     FILE *arquivoBin = fopen(nomeArquivoBin, "rb+");
     if(arquivoBin == NULL) {
         printf("Falha no processamento do arquivo.\n");
         return;
     }
 
-    // Leitura econômica do cabeçalho (somente o status interessa para avaliar a segurança)
+    // Leitura do cabeçalho (somente o status interessa para avaliar a consistência)
     Cabecalho cabecalho;
     fread(&cabecalho.status, sizeof(char), 1, arquivoBin);
     
-    // Trava de segurança ativada no disco ('0')
+    // Verificação da consistência do arquivo 
     if(!registro_gerenciaCabecalho(&cabecalho, arquivoBin, 0, 0))
         return;
 
-    // O laço avança de 2 em 2 pois a STDIN fornecerá primeiro os filtros da busca
+    // O laço avança de 2 em 2 pois a entrada fornecerá primeiro os filtros da busca
     // e logo na linha seguinte os valores que serão atualizados.
+    // Dessa vez, apenas uma atualização por vez é carregada na RAM :D
     for (int i = 0; i < 2*nAtualizacoes; i += 2) {
 
-        // Desempacotamento de pares: [Filtros -> Cláusula WHERE] e [Valores -> Cláusula SET]
+        // Leitura dos pares (filtros, valores)
         Busca filtros, valores;
         utils_recebeCampos(&filtros);
         utils_recebeCampos(&valores);
         
         // Posição zero dos dados
-        fseek(arquivoBin, 17, SEEK_SET);
+        fseek(arquivoBin, TAM_CABECALHO, SEEK_SET);
         
         Registro registro;
         int offsetAtual = TAM_CABECALHO;
@@ -383,13 +389,13 @@ void update(char* nomeArquivoBin, int nAtualizacoes) {
             // Seguimos em frente para o próximo registro
             offsetAtual += TAM_REGISTRO;
             
+            // Se for removido, ignoramos
             if (registro.removido == '1') continue; 
 
-            // Confirmação de alvo para aplicação física do update no disco
+            // Confirmação de alvo para aplicação da atualização
             if (utils_compararRegistroComFiltros(&registro, &filtros)) {
                 utils_atualizarRegistroComFiltros(valores, arquivoBin, offsetAtual);
             }
-
         }
         
         // Liberação dos vetores de ponteiros
@@ -400,7 +406,7 @@ void update(char* nomeArquivoBin, int nAtualizacoes) {
     // --- Finalização Otimizada ---
     // O arquivo será fechado com status consistente.
     // Não usamos a função "registro_gerenciaCabecalho" completa aqui pois evitamos o custo
-    // de I/O de reescrever todas as outras variáveis (como topo e nroPares) que não sofreram mutação.
+    // de I/O de reescrever todas as outras variáveis (como topo e nroPares) que não sofreram alteração.
     cabecalho.status = '1';
     fseek(arquivoBin, 0, SEEK_SET);
     fwrite(&cabecalho.status, sizeof(char), 1, arquivoBin);

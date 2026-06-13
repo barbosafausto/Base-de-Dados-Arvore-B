@@ -40,23 +40,23 @@ void createIndex(char* nomeArquivoDadosBin, char* nomeArquivoIndiceBin) {
     CabecalhoAB cabecalhoAB;
     arvoreb_initCabecalho(&cabecalhoAB);
     
-    // O cabeçalho provisório é gravado no início do arquivo de índice (status '0')
+    // O cabeçalho provisório é gravado no início do arquivo de índice (status '0': inconsistente)
     arvoreb_escreverCabecalhoBin(arquivoIndiceBin, &cabecalhoAB);
 
     // --- Leitura Sequencial e Indexação ---
     // Posiciona o cursor do arquivo de dados logo após o seu cabeçalho (byte 17)
-    fseek(arquivoDadosBin, 17, SEEK_SET);
+    fseek(arquivoDadosBin, TAM_CABECALHO, SEEK_SET);
 
     char removido;
     int codEstacao;
-    int offsetAtual = 17; // Rastreamento do offset físico do registro
-    int RRN;              
+    int offsetAtual = 17; // Rastreamento do offset do registro
 
-    // Loop de extração: lê o byte 'removido' de cada registro até o EOF
+    // Loop pelo arquivo de dados: lê o byte 'removido' de cada registro até o EOF
     while (fread(&removido, sizeof(char), 1, arquivoDadosBin) == 1) {
 
         // Tratamento de registros logicamente removidos
         if (removido == '1') {
+
             offsetAtual += 80;
             fseek(arquivoDadosBin, offsetAtual, SEEK_SET);        
             continue;
@@ -69,26 +69,25 @@ void createIndex(char* nomeArquivoDadosBin, char* nomeArquivoIndiceBin) {
         // Extrai a chave primária que será indexada
         fread(&codEstacao, sizeof(int), 1, arquivoDadosBin);
 
-        // Empacota a chave e o seu byte offset na estrutura Estacao (Pr = offsetAtual)
+        // "Empacota" a chave e o seu byte offset na estrutura Estacao (Pr = offsetAtual)
         Estacao estacaoParaInserir = {codEstacao, offsetAtual, -1};
 
-        // Aciona a rotina de inserção top-down na Árvore-B
+        // Chama a rotina de inserção top-down na Árvore-B
         arvoreb_inserir(arquivoIndiceBin, &cabecalhoAB, estacaoParaInserir);
 
-        // Atualiza os ponteiros de rastreio para o próximo ciclo
+        // Atualiza o offsetAtual para o próximo ciclo
         offsetAtual += 80;
         fseek(arquivoDadosBin, offsetAtual, SEEK_SET);
     }
 
     // --- Finalização ---
-    // Atualiza a consistência da árvore para '1' (estável) e regrava cabeçalho
+    // Atualiza a consistência da árvore para '1' (estável) e grava o cabeçalho
     fseek(arquivoIndiceBin, 0, SEEK_SET);
     arvoreb_gerenciaCabecalho(&cabecalhoAB, arquivoIndiceBin, 1, 0);
     
     fclose(arquivoDadosBin);
     fclose(arquivoIndiceBin);
 
-    // Exibe o hash hexadecimal do arquivo gerado
     BinarioNaTela(nomeArquivoIndiceBin);
 }
 
@@ -99,8 +98,8 @@ void createIndex(char* nomeArquivoDadosBin, char* nomeArquivoIndiceBin) {
 
 /**
  * @brief Funcionalidade [8]: Realiza buscas com critérios de seleção otimizadas pela Árvore-B.
- * Se a busca envolver a chave primária 'codEstacao', utiliza o índice para busca em O(log n).
- * Caso contrário, delega para a busca sequencial clássica.
+ * Se a busca envolver a chave primária 'codEstacao', utiliza o índice para busca.
+ * Caso contrário, delega para a busca sequencial clássica (funcionalidade 3).
  * * @param nomeArquivoDadosBin Nome do arquivo de dados.
  * @param nomeArquivoIndiceBin Nome do arquivo de índice Árvore-B.
  * @param nBuscas Quantidade de pesquisas que serão efetuadas em sequência.
@@ -120,6 +119,8 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
         return;
     }
 
+    // Verificando se foi fornecido um nome para arquivo de árvore-B
+    // Se não foi fornecido, chamaremos a funcionalidade 3.
     int temArvoreB = 1;
     if (nomeArquivoIndiceBin == NULL)
         temArvoreB = 0;
@@ -129,6 +130,8 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
     CabecalhoAB cabecalhoAB;
     
     if (temArvoreB) {
+
+        // --- Se tem árvore-b, então abrimos o arquivo e verificamos sua integridade ---
         arquivoIndiceBin = fopen(nomeArquivoIndiceBin, "rb");
         if(arquivoIndiceBin == NULL) {
             printf("Falha no processamento do arquivo.\n");
@@ -145,6 +148,7 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
     // --- Processamento de Buscas ---
     for (int i = 0; i < nBuscas; i++) {
 
+        // Recebimento dos campos
         Busca busca;
         int codEstacao = utils_recebeCampos(&busca);
         int byteOffset = -1;
@@ -157,7 +161,7 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
             continue; 
         }   
         else {
-            // Busca indexada O(log n)
+            // Busca na árvore 
             byteOffset = arvoreb_buscar(arquivoIndiceBin, &cabecalhoAB, codEstacao); 
         }
 
@@ -170,7 +174,7 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
             continue;
         }
         
-        // Salto direto O(1) no arquivo de dados via offset
+        // Se chegou aqui, então achamamos uma chave válida. Vamos ler o registro
         fseek(arquivoDadosBin, byteOffset, SEEK_SET);
         registro_lerRegistroBin(arquivoDadosBin, &registro);
 
