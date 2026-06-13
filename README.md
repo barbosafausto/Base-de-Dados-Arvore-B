@@ -26,7 +26,7 @@ O sistema suporta 10 operações fundamentais, selecionáveis via entrada padrã
 
 9. **Insert (Sincronizado)**: Insere registros de forma coesa. O dado é gravado no arquivo de dados (reaproveitando espaços via pilha) e a chave correspondente é simultaneamente inserida na Árvore-B, gerenciando automaticamente as divisões de páginas (*splits*) e promoções.
 
-10. **Delete (Sincronizado)**: Remove registros logicamente do arquivo de dados e exclui de forma irreversível a chave correspondente do índice Árvore-B. Trata ativamente o rebalanceamento da árvore, efetuando empréstimos (redistribuições) e fusões (*merges*) para corrigir *underflows*.
+10. **Delete (Sincronizado)**: Remove registros logicamente do arquivo de dados e exclui de forma irreversível a chave correspondente do índice Árvore-B. Trata ativamente o rebalanceamento da árvore, efetuando empréstimos (redistribuições) e fusões (concatenações) para corrigir *underflows*.
 
 ❗Este trabalho é limitado, de modo que não trata todas as possíveis sequências de entradas.
 
