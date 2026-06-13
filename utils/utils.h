@@ -5,12 +5,12 @@
     #include "../fornecidas/fornecidas.h"
 
     /* ========================================================================== *
-     * ESTRUTURAS DE DADOS: MÉTRICAS E CONTROLE DE UNICIDADE                      *
+     * ESTRUTURAS DE DADOS: MÉTRICAS E CONTROLE 
      * ========================================================================== */
 
     /**
-     * @brief Nó de lista encadeada para controle de unicidade do nomeEstacao.
-     * Auxilia na contagem do campo 'nroEstacoes' do cabeçalho sem lotar a RAM.
+     * @brief Nó de lista encadeada para controle da unicidade do nomeEstacao.
+     * Auxilia na contagem do campo 'nroEstacoes' do cabeçalho. 
      */
     typedef struct nodeNome {
         char *nome;
@@ -18,8 +18,8 @@
     } NodeNome;
 
     /**
-     * @brief Nó de lista encadeada para controle de unicidade de pares de estações.
-     * Auxilia na contagem do campo 'nroParesEstacao' do cabeçalho de forma bidirecional.
+     * @brief Nó de lista encadeada para controle da unicidade dos pares de estações.
+     * Auxilia na contagem do campo 'nroParesEstacao' do cabeçalho de forma bidirecional: (A, B) = (B, A)
      */
     typedef struct nodePares {
         int cod1;
@@ -34,7 +34,7 @@
 
     /**
      * @brief Estrutura que representa um único critério/campo de busca.
-     * Diferencia internamente strings com aspas, valores inteiros numéricos e valores NULO.
+     * Diferencia internamente strings, valores inteiros numéricos e valores NULO.
      */
     typedef struct {
         char nomeCampo[20];
@@ -57,16 +57,16 @@
      * PROTÓTIPOS: GERENCIAMENTO DE LISTAS (CONTADORES ÚNICOS)                    *
      * ========================================================================== */
 
-    // Incrementa a métrica virtual inserindo a estação apenas se for inédita.
+    // Incrementa a métrica de estações únicas inserindo a estação apenas se for inédita.
     int utils_adicionarEstacaoUnica(NodeNome **head, char *nome);
 
-    // Incrementa a métrica virtual inserindo o par bidirecional se for inédito e não nulo.
+    // Incrementa a métrica inserindo o par bidirecional se for inédito e não válido.
     int utils_adicionarParUnico(NodePares **head, int cod1, int cod2);
 
-    // Varre o arquivo binário para estabilizar as métricas do cabeçalho após mutações.
+    // Varre o arquivo binário para estabilizar as métricas do cabeçalho após mudanças.
     void utils_contaNroEstacoesNroPares(Cabecalho *cabecalho, FILE *arquivoBin, int Delete);
 
-    // Realiza a limpeza de memória profunda (Heap) de todos os nós das listas auxiliares.
+    // Realiza a limpeza da memória heap de todos os nós das listas auxiliares.
     void utils_liberarUtils(NodeNome *headNomes, NodePares *headPares);
 
 
@@ -74,13 +74,13 @@
      * PROTÓTIPOS: MOTOR DE BUSCA E ATUALIZAÇÃO                                   *
      * ========================================================================== */
 
-    // Instancia o pacote de busca lendo e interpretando os tipos de dados da STDIN.
+    // Instancia o pacote de busca lendo e interpretando os tipos de dados de entrada.
     int utils_recebeCampos(Busca *busca);
 
-    // Motor de comparação estrita (AND lógico) entre um registro físico e os critérios do usuário.
+    // Motor de comparação entre um registro e os critérios fornecidos.
     int utils_compararRegistroComFiltros(Registro *registro, Busca *busca);
 
-    // Executa a injeção física de dados específicos sobre um registro já validado.
+    // Executa a inserção de dados atualizados (função de update) sobre um registro já validado.
     void utils_atualizarRegistroComFiltros(Busca busca, FILE *arquivoBin, int offsetAtual);
 
 #endif
