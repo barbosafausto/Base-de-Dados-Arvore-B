@@ -188,7 +188,7 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
             printf("Registro inexistente.\n\n");
         }
 
-        // Liberação da alocaçãod dinâmica
+        // Liberação da alocação dinâmica
         free(busca.campo);
     }
     
