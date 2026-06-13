@@ -171,6 +171,7 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
         // Chave inexistente na Árvore-B
         if (byteOffset == -1) {
             printf("Registro inexistente.\n\n");
+            free(busca.campo); // Lembrando de liberar os campos atuais
             continue;
         }
         
@@ -186,6 +187,9 @@ void selectWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nB
         else {
             printf("Registro inexistente.\n\n");
         }
+
+        // Liberação da alocaçãod dinâmica
+        free(busca.campo);
     }
     
     // Fechamento seguro
