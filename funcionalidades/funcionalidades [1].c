@@ -225,13 +225,14 @@ void insertIntoAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nIn
     // --- Abertura e Validação do Arquivo de Dados / Arquivo de Índice ---
     FILE *arquivoDadosBin = fopen(nomeArquivoDadosBin, "rb+");
     if(arquivoDadosBin == NULL){
-        printf("Falha no processamento do arquivo de dados.\n");
+        printf("Falha no processamento do arquivo.\n");
         return;
     }
 
     FILE *arquivoIndiceBin = fopen(nomeArquivoIndiceBin, "rb+");
     if(arquivoIndiceBin == NULL){
-        printf("Falha no processamento do arquivo de índice.\n");
+        printf("Falha no processamento do arquivo.\n");
+        fclose(arquivoDadosBin);
         return;
     }
 
@@ -303,6 +304,19 @@ void insertIntoAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nIn
 
     }
 
+    // Recalcula informações do cabeçalho do arquivo de dados
+    utils_contaNroEstacoesNroPares(&cabecalho, arquivoDadosBin, 1);
+
+    // Finaliza os arquivos como consistentes
+    registro_gerenciaCabecalho(&cabecalho, arquivoDadosBin, 1, 0);
+    arvoreb_gerenciaCabecalho(&cabecalhoAB, arquivoIndiceBin, 1, 0);
+
+    fclose(arquivoDadosBin);
+    fclose(arquivoIndiceBin);
+
+    BinarioNaTela(nomeArquivoDadosBin);
+    BinarioNaTela(nomeArquivoIndiceBin);
+
 }
 
 /* ========================================================================== *
@@ -320,13 +334,13 @@ void deleteWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nR
     // Abrindo os arquivos
     FILE *arquivoDadosBin = fopen(nomeArquivoDadosBin, "rb+");
     if(arquivoDadosBin == NULL){
-        printf("Falha no processamento do arquivo de dados.\n");
+        printf("Falha no processamento do arquivo.\n");
         return;
     }
 
     FILE *arquivoIndiceBin = fopen(nomeArquivoIndiceBin, "rb+");
     if(arquivoIndiceBin == NULL){
-        printf("Falha no processamento do arquivo de índice.\n");
+        printf("Falha no processamento do arquivo\n");
         return;
     }
 
@@ -340,7 +354,7 @@ void deleteWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nR
     }
 
     CabecalhoAB cabecalhoAB;
-    arvoreb_lerCabecalhoBin(&cabecalhoAB, arquivoIndiceBin);
+    arvoreb_lerCabecalhoBin(arquivoIndiceBin, &cabecalhoAB);
 
     if(!arvoreb_gerenciaCabecalho(&cabecalhoAB, arquivoIndiceBin, 0, 1)){
         fclose(arquivoDadosBin);
@@ -360,11 +374,69 @@ void deleteWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nR
         // Caso 1: Remoção com codEstação (busca na árvore-B)
         if(codEstacao != -1) {
 
+                int byteOffset = arvoreb_buscar(arquivoIndiceBin, &cabecalhoAB, codEstacao);
+
+                // Caso ache o Offset
+                if(byteOffset != -1) {
+
+                    Registro registro;
+                    fseek(arquivoDadosBin, byteOffset, SEEK_SET);
+                    registro_lerRegistroBin(arquivoDadosBin, &registro);
+
+                    if(registro.removido != '1' && utils_compararRegistroComFiltros(&registro, &busca)){
+                        int chaveRemocao = registro.codEstacao;
+
+                        registro_deletarRegistro(&registro, &cabecalho, arquivoDadosBin, byteOffset + TAM_REGISTRO);
+
+                        arvoreb_remover(arquivoIndiceBin, &cabecalhoAB, chaveRemocao);
+                    }
+                }
         }
 
-        // Caso 2: Remoção com outros filtros
+        // Caso 2: Remoção com outros filtros (sequencial)
         else {
 
+            // Pular cabeçalho
+            fseek(arquivoDadosBin, TAM_CABECALHO, SEEK_SET);
+
+            Registro registro;
+            int offsetAtual = TAM_CABECALHO;
+
+            // Percorrer de forma sequencial
+            while(registro_lerRegistroBin(arquivoDadosBin, &registro) != -1){
+                
+                offsetAtual += TAM_REGISTRO;
+
+                // Registro já removido
+                if(registro.removido == '1') continue;
+
+                // Se o registro for compativel com a busca
+                if(utils_compararRegistroComFiltros(&registro, &busca)){
+                    
+                    int chaveRemocao = registro.codEstacao;
+
+                    registro_deletarRegistro(&registro, &cabecalho, arquivoDadosBin, offsetAtual);
+
+                    arvoreb_remover(arquivoIndiceBin, &cabecalhoAB, chaveRemocao);
+
+                }
+            }
         }
+
+        free(busca.campo);
     }
+
+    // Atualizar valores dos Pares
+    utils_contaNroEstacoesNroPares(&cabecalho, arquivoDadosBin, 1);
+
+    // Deixar consistente
+    registro_gerenciaCabecalho(&cabecalho, arquivoDadosBin, 1, 0);
+    arvoreb_gerenciaCabecalho(&cabecalhoAB, arquivoIndiceBin, 1, 0);
+
+    fclose(arquivoDadosBin);
+    fclose(arquivoIndiceBin);
+
+    BinarioNaTela(nomeArquivoDadosBin);
+    BinarioNaTela(nomeArquivoIndiceBin);
+
 }

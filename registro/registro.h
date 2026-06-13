@@ -50,7 +50,7 @@
     int registro_gerenciaCabecalho(Cabecalho *cabecalho, FILE *arquivoBin, int escreveConsistente, int leitura);
 
     // Lê o cabeçalho do arquivo
-    void registro_lerCabecalho(Cabecalho *cabecalho, FILE *arquivoBin);
+    void registro_lerCabecalho(FILE *arquivoBin, Cabecalho *cabecalho);
 
     // Escreve o cabeçalho no arquivo
     void registro_escreverCabecalhoBin(FILE *arquivo, Cabecalho *cabecalho);

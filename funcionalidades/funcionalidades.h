@@ -28,6 +28,6 @@
     void createIndex(char* nomeArquivoDadosBin, char* nomeArquivoIndiceBin);
     void selectWhereAB(char* nomeArquivoDadosBin, char* nomeArquivoIndiceBin, int nBuscas);
     void insertIntoAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nInsercoes);
-    void deleteWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nRemocoes)
+    void deleteWhereAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nRemocoes);
 
 #endif
