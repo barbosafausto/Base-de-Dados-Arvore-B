@@ -116,6 +116,12 @@
     // Grava os dados de um nó da RAM para o disco, respeitando os 53 bytes exigidos.
     void arvoreb_escreverNoBin(FILE *arquivoIndiceBin, NO *node, int RRN);
 
+    // Lê o topo da pilha de removidos se houver, senão pega o proxRRN e gerencia o cabeçalho.
+    int arvoreb_obterRRNNovoNo(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB);
+
+    // Apenas monta os campos do nó em memória. Não incrementa os contadores do cabeçalho.
+    NO arvoreb_montarNo(int tipoNo, int P1, Estacao *estacao, int nroChaves);
+
 
     /* ========================================================================== *
      * PROTÓTIPOS: FUNCIONALIDADE DE BUSCA                                        *

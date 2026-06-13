@@ -188,6 +188,59 @@ void arvoreb_escreverNoBin(FILE *arquivoIndiceBin, NO *node, int RRN) {
         fwrite(&node->estacao[i].P2, sizeof(int), 1, arquivoIndiceBin);
 }
 
+/**
+ * @brief Obtém um RRN disponível, dando prioridade à pilha de nós removidos.
+ * Atualiza o cabeçalho (topo, proxRRN e nroNos) mas não o grava (o caller decide quando gravar).
+ */
+int arvoreb_obterRRNNovoNo(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB) {
+    int rrnNovo;
+
+    // Prioridade 1: Reutiliza o topo da pilha de nós logicamente removidos
+    if (cabecalhoAB->topo != -1) {
+        rrnNovo = cabecalhoAB->topo;
+
+        // Lê o nó removido para descobrir quem é o próximo da pilha
+        NO noRemovido = arvoreb_lerNoBin(arquivoIndiceBin, rrnNovo);
+        
+        // O topo passa a ser o RRN armazenado no campo 'proximo'
+        cabecalhoAB->topo = noRemovido.proximo;
+        cabecalhoAB->nroNos++; // Reativando um nó
+    } 
+    // Prioridade 2: Pega um novo RRN do fim do arquivo
+    else {
+        rrnNovo = cabecalhoAB->proxRRN;
+        cabecalhoAB->proxRRN++;
+        cabecalhoAB->nroNos++;
+    }
+
+    return rrnNovo;
+}
+
+/**
+ * @brief Monta a estrutura do nó estritamente em memória primária.
+ * Isola a responsabilidade de formatação sem afetar as métricas do cabeçalho.
+ */
+NO arvoreb_montarNo(int tipoNo, int P1, Estacao *estacao, int nroChaves) {
+    NO no;
+
+    no.removido = '0';      
+    no.proximo = -1;      
+    no.tipoNo = tipoNo;
+    no.nroChaves = nroChaves;
+    no.P1 = P1; 
+    
+    // Cópia das chaves passadas
+    for (int i = 0; i < nroChaves; i++) 
+        no.estacao[i] = estacao[i];
+
+    // Padding nulo para os espaços não utilizados
+    Estacao estacaoVazia = {-1, -1, -1};
+    for (int i = nroChaves; i < ORDEM_ARVORE-1; i++) 
+        no.estacao[i] = estacaoVazia;
+
+    return no;
+}
+
 /* ========================================================================== *
  * FUNCIONALIDADES DE BUSCA                         *
  * ========================================================================== */
@@ -306,97 +359,84 @@ void arvoreb_ordenaNo(Estacao *estacoes, Estacao *estacaoParaInserir, int nroCha
 Estacao arvoreb_split(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, Estacao *estacaoParaInserir, NO *node, int nodeRRN) {
 
     // --- Etapa 1: Preparação do Vetor de Transbordo (Ordenação) ---
-    
-    Estacao estacoes[ORDEM_ARVORE]; // Vetor com capacidade para M chaves (causa do overflow)
+    Estacao estacoes[ORDEM_ARVORE]; 
 
-    // Copia as chaves atuais da página original para o vetor temporário
     for (int i = 0; i < ORDEM_ARVORE-1; i++)
         estacoes[i] = node->estacao[i];
 
-    // Insere a nova chave estourando o limite no vetor auxiliar, mantendo a ordem estrita
     arvoreb_ordenaNo(estacoes, estacaoParaInserir, ORDEM_ARVORE-1);
 
     // --- Etapa 2: Definição da Mediana e Distribuição de Chaves ---
-
-    // Identificação da chave mediana que será promovida para o nó pai
-    Estacao estacaoPromovida = estacoes[ORDEM_ARVORE/2];
-
-    NO novoNo; // Estrutura que irá comportar a metade direita da página original dividida
     
-    // Preenchimento do nó direito com as chaves maiores (à direita da mediana)
+    // A mediana promovida (garante o nó esquerdo com uma chave a mais: 0 e 1 esquerdas, 2 sobe, 3 direita)
+    Estacao estacaoPromovida = estacoes[ORDEM_ARVORE/2]; 
+
+    // Aloca RRN com base em reuso de pilha (topo) ou proxRRN
+    int RRNNovoNO = arvoreb_obterRRNNovoNo(arquivoIndiceBin, cabecalhoAB);
+
+    NO novoNo; 
+    
     for (int i = 0; i < OCUPACAO_MINIMA; i++)
         novoNo.estacao[i] = estacoes[ORDEM_ARVORE/2 + 1 + i];
 
-    // Transferência essencial de ponteiros: o filho mais à esquerda do novo nó herda o ponteiro direito da chave promovida
+    // O P1 do novo nó direito herda o P2 da chave promovida
     novoNo.P1 = estacaoPromovida.P2;
-    // O ponteiro direito da chave promovida passa a apontar para o RRN da nova página que será alocada
-    estacaoPromovida.P2 = cabecalhoAB->proxRRN;
+    // O P2 da chave promovida DEVE apontar para o RRN que acabamos de alocar
+    estacaoPromovida.P2 = RRNNovoNO;
 
-    // Atualização da página original (metade esquerda) mantendo as chaves menores
+    // O nó esquerdo (original) fica com a primeira metade
     for (int i = 0; i < ORDEM_ARVORE/2; i++)
         node->estacao[i] = estacoes[i];
 
-    // Limpeza por preenchimento (padding nulo) nas posições excedentes da página original
+    // Limpeza de campos fantasmas no nó esquerdo original
     Estacao estacaoVazia = {-1, -1, -1};
     for (int i = ORDEM_ARVORE/2; i < ORDEM_ARVORE-1; i++)
         node->estacao[i] = estacaoVazia;
 
-    // Redução do número de chaves refletindo a divisão
-    node->nroChaves = ORDEM_ARVORE/2;
+    node->nroChaves = ORDEM_ARVORE / 2;
 
     // --- Etapa 3: Tratamento e Hierarquia de Tipos de Nó ---
-    
-    int tipoNoAntigo = node->tipoNo;
-    int nroNos = cabecalhoAB->nroNos;
-   
-    // A página direita espelha as características de nível de folha do nó pai antes de dividi-lo
-    novoNo.tipoNo = -2; // Valor âncora provisório
-    if (node->tipoNo == -1)
+
+    // Ajusta o tipo do nó original após o split.
+    // Se ele era raiz, deixará de ser raiz quando uma nova raiz for criada.
+    if (node->P1 == -1) {
+        node->tipoNo = -1; // folha
+    } else {
+        node->tipoNo = 1;  // intermediário
+    }
+
+    // Descobre se o novo nó direito é folha ou intermediário.
+    // O novo nó direito é folha se seu P1 for -1.
+    if (novoNo.P1 == -1) {
         novoNo.tipoNo = -1;
-    else {
-        // Se não for folha, verifica a existência de filhos remanescentes para confirmar a classificação
-        int filhos = 0;
-        if (node->P1 != -1) filhos = 1;
-        for (int i = 0; i < node->nroChaves && filhos == 0; i++)
-            if (node->estacao[i].P2 != -1) filhos = 1;
-         
-        // Se houver filhos, garante a configuração como intermediário, caso contrário, folha.
-        if (filhos) node->tipoNo = 1;
-        else node->tipoNo = -1;
+    } else {
+        novoNo.tipoNo = 1;
     }
 
-    // Persiste o nó original atualizado no disco
+    // Persiste o nó esquerdo atualizado no disco
     arvoreb_escreverNoBin(arquivoIndiceBin, node, nodeRRN);
-
-    // Repete a verificação e classificação de hierarquia estrutural para o novo nó direito
-    if (novoNo.tipoNo != -1) {
-        int filhos = 0;
-        if (novoNo.P1 != -1) filhos = 1;
-        for (int i = 0; i < OCUPACAO_MINIMA && filhos == 0; i++)
-            if (novoNo.estacao[i].P2 != -1) filhos = 1;
-         
-        if (filhos) novoNo.tipoNo = 1;
-        else novoNo.tipoNo = -1;
-    }
 
     // --- Etapa 4: Criação e Gravação Definitiva ---
 
-    int RRNNovoNO = cabecalhoAB->proxRRN;
-    // O novo nó é formatado segundo as regras da página com o reaproveitamento da estrutura alocada em RAM
-    novoNo = arvoreb_criarNoBin(cabecalhoAB, novoNo.tipoNo, novoNo.P1, novoNo.estacao);
+    // Montamos e escrevemos a nova página com segurança
+    novoNo = arvoreb_montarNo(novoNo.tipoNo, novoNo.P1, novoNo.estacao, OCUPACAO_MINIMA);
     arvoreb_escreverNoBin(arquivoIndiceBin, &novoNo, RRNNovoNO);
     
-    // Tratamento excepcional da Raiz: Se o split ocorreu no nó raiz original (mesmo que estivesse operando como folha), force o crescimento da árvore criando um novo nível
-    if (tipoNoAntigo == 0 || (tipoNoAntigo == -1 && nroNos == 1)) {
-        cabecalhoAB->noRaiz = cabecalhoAB->proxRRN; // Atualiza a diretriz da raiz no registro de controle
-        int RRNNovaRaiz = cabecalhoAB->proxRRN;
+    // Tratamento excepcional da Raiz: Utilizando a validação estrita (RRN atual é a raiz?)
+    if (nodeRRN == cabecalhoAB->noRaiz) {
         
-        // A nova raiz recém-criada é indexada abraçando as duas metades provenientes do split
-        NO novaRaiz = arvoreb_criarNoBin(cabecalhoAB, 0, nodeRRN, &estacaoPromovida);
+        // Busca espaço para a nova raiz na pilha de removidos ou cria novo
+        int RRNNovaRaiz = arvoreb_obterRRNNovoNo(arquivoIndiceBin, cabecalhoAB);
+        
+        // Atualiza a âncora da árvore
+        cabecalhoAB->noRaiz = RRNNovaRaiz; 
+        
+        // Monta a nova raiz apontando P1 para a metade esquerda (o nó que sofreu split)
+        NO novaRaiz = arvoreb_montarNo(0, nodeRRN, &estacaoPromovida, 1);
         arvoreb_escreverNoBin(arquivoIndiceBin, &novaRaiz, RRNNovaRaiz);
     } 
 
-    return estacaoPromovida; // Devolve a chave mediana para a cadeia recursiva tratar (ou descartar se foi resolvida na raiz)
+    return estacaoPromovida; 
 }
 
 /**

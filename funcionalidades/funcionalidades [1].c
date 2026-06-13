@@ -264,6 +264,11 @@ void insertIntoAB(char *nomeArquivoDadosBin, char *nomeArquivoIndiceBin, int nIn
         Registro registro;
         registro_lerRegistro(&registro);
 
+        // Se a chave já existe na árvore-B, não insere no arquivo de dados nem no índice.
+        if (arvoreb_buscar(arquivoIndiceBin, &cabecalhoAB, registro.codEstacao) != -1) {
+            continue;
+        }
+
         int byteOffsetInserir;
 
         // Caso 1: existe registro removido para reaproveitar
