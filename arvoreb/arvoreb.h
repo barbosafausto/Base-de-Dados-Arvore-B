@@ -158,20 +158,52 @@
      * PROTÓTIPOS: FUNCIONALIDADE DE REMOÇÃO                                      *
      * ========================================================================== */
 
+    // --- Interface Pública e Controle de Raiz ---
+
+    // Funcionalidade encapsuladora externa para requisição de deleção de chave.
     void arvoreb_remover(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int chave);
+
+    // Caminha recursivamente a árvore para apagar chaves e gerenciar eventuais subidas de underflow.
     int arvoreb_removerRecursivo(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnAtual, int chave);
-    int arvoreb_encontrarPosicao(NO *node, int chave);
-    int arvoreb_getFilho(NO *node, int pos);
-    void arvoreb_setFilho(NO *node, int pos, int rrn);
-    void arvoreb_removerChaveDoNo(NO *node, int pos);
-    Estacao arvoreb_buscarSucessora(FILE *arquivoIndiceBin, int rrnSubarvoreDireita);
-    void arvoreb_empilharNoRemovido(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnRemovido);
-    void arvoreb_corrigirUnderflow(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho);
-    int arvoreb_redistribuirDireita(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnDir);
-    int arvoreb_redistribuirEsquerda(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnEsq);
-    int arvoreb_concatenarEsquerda(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnEsq);
-    int arvoreb_concatenarDireita(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnDir);
+
+    // Verifica se a raiz ficou vazia após deleções e rebaixa a altura da árvore, se necessário.
     void arvoreb_ajustarRaiz(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB);
 
+    // --- Estratégias de Tratamento de Underflow ---
+
+    // Gerenciador de estratégia. Testa empréstimos e fusões até que a página volte ao balanço matemático.
+    void arvoreb_corrigirUnderflow(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho);
+
+    // Executa empréstimo de UMA chave do irmão direito para suprir um filho em underflow.
+    int arvoreb_redistribuirDireita(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnDir);
+
+    // Executa empréstimo de chaves do irmão esquerdo para suprir um filho em underflow via pai.
+    int arvoreb_redistribuirEsquerda(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnEsq);
+
+    // Une o nó em underflow irreversivelmente com seu irmão esquerdo.
+    int arvoreb_concatenarEsquerda(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnEsq);
+
+    // Variante de união: o irmão direito cede todas as chaves para o nó em underflow e é destruído.
+    int arvoreb_concatenarDireita(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnDir);
+
+    // --- Funções Auxiliares de Manipulação ---
+
+    // Busca a estação sucessora in-order (na folha mais à esquerda da subárvore direita).
+    Estacao arvoreb_buscarSucessora(FILE *arquivoIndiceBin, int rrnSubarvoreDireita);
+
+    // Realiza uma busca linear (ou binária) para encontrar o índice de uma chave ou o local de descida.
+    int arvoreb_encontrarPosicao(NO *node, int chave);
+
+    // Retorna o RRN do filho na posição solicitada, abstraindo o acesso entre P1 e P2.
+    int arvoreb_getFilho(NO *node, int pos);
+
+    // Define de forma abstraída o RRN de uma subárvore em uma posição específica.
+    void arvoreb_setFilho(NO *node, int pos, int rrn);
+
+    // Remove fisicamente uma chave de um nó em memória por meio de shift sequencial à esquerda.
+    void arvoreb_removerChaveDoNo(NO *node, int pos);
+
+    // Invalida logicamente uma página que sofreu merge e a insere no topo da pilha de remoções.
+    void arvoreb_empilharNoRemovido(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnRemovido);
 
 #endif

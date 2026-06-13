@@ -1,7 +1,7 @@
 #include "arvoreb.h"
 
 /* ========================================================================== *
- * FUNÇÕES DE GERENCIAMENTO DE CABEÇALHO                     *
+ * FUNÇÕES DE GERENCIAMENTO DE CABEÇALHO                                      *
  * ========================================================================== */
 
 /**
@@ -22,7 +22,6 @@ void arvoreb_initCabecalho(CabecalhoAB *cabecalhoAB) {
  * @param cabecalhoAB Ponteiro para a estrutura de cabeçalho que receberá os dados.
  */
 void arvoreb_lerCabecalhoBin(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB) {
-    // A leitura de todos os campos ocorre sequencialmente, totalizando 17 bytes lidos.
     fread(&cabecalhoAB->status, sizeof(char), 1, arquivoIndiceBin);
     fread(&cabecalhoAB->noRaiz, sizeof(int), 1, arquivoIndiceBin);
     fread(&cabecalhoAB->topo, sizeof(int), 1, arquivoIndiceBin);
@@ -36,10 +35,7 @@ void arvoreb_lerCabecalhoBin(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB) {
  * @param cabecalhoAB Ponteiro para a estrutura de cabeçalho contendo os dados atualizados.
  */
 void arvoreb_escreverCabecalhoBin(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB) {
-    // Posiciona o cursor no byte 0 (início absoluto do arquivo) para sobrescrever o cabeçalho
     fseek(arquivoIndiceBin, 0, SEEK_SET);
-    
-    // Escrita sequencial dos 17 bytes correspondentes ao cabeçalho
     fwrite(&cabecalhoAB->status,          sizeof(char), 1, arquivoIndiceBin);
     fwrite(&cabecalhoAB->noRaiz,          sizeof(int), 1, arquivoIndiceBin);
     fwrite(&cabecalhoAB->topo,            sizeof(int), 1, arquivoIndiceBin);
@@ -57,7 +53,6 @@ void arvoreb_escreverCabecalhoBin(FILE *arquivoIndiceBin, CabecalhoAB *cabecalho
  */
 int arvoreb_gerenciaCabecalho(CabecalhoAB *cabecalhoAB, FILE *arquivoIndiceBin, int escreverConsistente, int abertoParaLeitura) {
     
-    // Caso 1: Finalização segura do arquivo. Define status como '1' (consistente) e grava no disco.
     if (escreverConsistente == 1) {
         cabecalhoAB->status = '1'; 
         fseek(arquivoIndiceBin, 0, SEEK_SET);
@@ -65,14 +60,12 @@ int arvoreb_gerenciaCabecalho(CabecalhoAB *cabecalhoAB, FILE *arquivoIndiceBin, 
         return 1;
     }
     
-    // Caso 2: Verificação de segurança ao abrir o arquivo. Se estiver '0', aborta a operação.
     if (cabecalhoAB->status == '0') { 
         printf("Falha no processamento do arquivo.\n");
         fclose(arquivoIndiceBin);
         return 0;
     }
 
-    // Caso 3: Abertura para escrita. Define status como '0' no disco imediatamente para prevenir corrupção em caso de falha.
     if (abertoParaLeitura == 0) {
         cabecalhoAB->status = '0';
         fseek(arquivoIndiceBin, 0, SEEK_SET);
@@ -83,7 +76,7 @@ int arvoreb_gerenciaCabecalho(CabecalhoAB *cabecalhoAB, FILE *arquivoIndiceBin, 
 }
 
 /* ========================================================================== *
- * FUNÇÕES DE MANIPULAÇÃO DOS NÓS                        *
+ * FUNÇÕES DE MANIPULAÇÃO DOS NÓS                                             *
  * ========================================================================== */
 
 /**
@@ -93,27 +86,22 @@ int arvoreb_gerenciaCabecalho(CabecalhoAB *cabecalhoAB, FILE *arquivoIndiceBin, 
  * @return NO Estrutura do nó preenchida com os dados lidos do arquivo.
  */
 NO arvoreb_lerNoBin(FILE *arquivoIndiceBin, int RRN) {
-    NO node; // Estrutura em RAM que irá armazenar os dados lidos
+    NO node; 
 
-    // Posiciona o cursor de leitura saltando o cabeçalho (17 bytes) e as páginas anteriores (RRN * 53 bytes)
     fseek(arquivoIndiceBin, 17 + RRN * 53, SEEK_SET);
 
-    // Leitura dos metadados da página
     fread(&node.removido, sizeof(char), 1, arquivoIndiceBin);   
     fread(&node.proximo, sizeof(int), 1, arquivoIndiceBin);
     fread(&node.tipoNo, sizeof(int), 1, arquivoIndiceBin);
     fread(&node.nroChaves, sizeof(int), 1, arquivoIndiceBin);
 
-    // Leitura sequencial intercalada das Chaves de Busca (codEstacao) e Referências (byte offsets)
     for (int i = 0; i < ORDEM_ARVORE-1; i++) {
         fread(&node.estacao[i].chave, sizeof(int), 1, arquivoIndiceBin);
         fread(&node.estacao[i].Pr, sizeof(int), 1, arquivoIndiceBin);
     }
     
-    // Leitura do ponteiro P1 (Filho esquerdo da primeira chave)
     fread(&node.P1, sizeof(int), 1, arquivoIndiceBin);
 
-    // Leitura dos demais ponteiros (P2, P3 e P4) correspondentes às chaves lidas
     for (int i = 0; i < ORDEM_ARVORE-1; i++) 
         fread(&node.estacao[i].P2, sizeof(int), 1, arquivoIndiceBin);
 
@@ -131,29 +119,24 @@ NO arvoreb_lerNoBin(FILE *arquivoIndiceBin, int RRN) {
 NO arvoreb_criarNoBin(CabecalhoAB *cabecalhoAB, int tipoNo, int P1, Estacao *estacao) {
     NO node;
 
-    // Inicialização segura das flags de remoção lógica
     node.removido = '0';      
     node.proximo = -1;      
     node.tipoNo = tipoNo;
 
-    // Definição da ocupação baseada no tipo do nó (raiz possui exceção matemática de mínimo 1 chave)
     if (tipoNo == 0 || (tipoNo == -1 && cabecalhoAB->nroNos == 0))
         node.nroChaves = 1;
     else 
         node.nroChaves = OCUPACAO_MINIMA;
 
-    node.P1 = P1; // Âncora esquerda da página
+    node.P1 = P1; 
     
-    // Cópia profunda das chaves, referências e ponteiros direitos fornecidos
     for (int i = 0; i < node.nroChaves; i++) 
         node.estacao[i] = estacao[i];
 
-    // Preenchimento de lixo (padding) lógico com -1 para os espaços não utilizados da página
     Estacao estacaoVazia = {-1, -1, -1};
     for (int i = node.nroChaves; i < ORDEM_ARVORE-1; i++) 
         node.estacao[i] = estacaoVazia;
 
-    // Atualização global do cabeçalho refletindo a criação da nova página
     cabecalhoAB->nroNos++;
     cabecalhoAB->proxRRN++;
 
@@ -167,22 +150,18 @@ NO arvoreb_criarNoBin(CabecalhoAB *cabecalhoAB, int tipoNo, int P1, Estacao *est
  * @param RRN Registro Relativo Numérico alvo da gravação.
  */
 void arvoreb_escreverNoBin(FILE *arquivoIndiceBin, NO *node, int RRN) {
-    // Posiciona o cursor de gravação no offset exato da página-alvo (53 bytes por página)
     fseek(arquivoIndiceBin, 17 + RRN * 53, SEEK_SET);
 
-    // Gravação dos metadados
     fwrite(&node->removido, sizeof(char), 1, arquivoIndiceBin);
     fwrite(&node->proximo, sizeof(int), 1, arquivoIndiceBin);
     fwrite(&node->tipoNo, sizeof(int), 1, arquivoIndiceBin);
     fwrite(&node->nroChaves, sizeof(int), 1, arquivoIndiceBin);
 
-    // Gravação intercalada das Chaves de Busca (codEstacao) e Referências (byte offsets) de acordo com a especificação
     for (int i = 0; i < 3; i++) {
         fwrite(&node->estacao[i].chave, sizeof(int), 1, arquivoIndiceBin);
         fwrite(&node->estacao[i].Pr, sizeof(int), 1, arquivoIndiceBin);
     }
 
-    // Gravação contígua dos ponteiros de subárvores no final da página
     fwrite(&node->P1, sizeof(int), 1, arquivoIndiceBin);
     for (int i = 0; i < 3; i++)
         fwrite(&node->estacao[i].P2, sizeof(int), 1, arquivoIndiceBin);
@@ -191,6 +170,9 @@ void arvoreb_escreverNoBin(FILE *arquivoIndiceBin, NO *node, int RRN) {
 /**
  * @brief Obtém um RRN disponível, dando prioridade à pilha de nós removidos.
  * Atualiza o cabeçalho (topo, proxRRN e nroNos) mas não o grava (o caller decide quando gravar).
+ * @param arquivoIndiceBin Ponteiro para o arquivo binário.
+ * @param cabecalhoAB Ponteiro para o cabeçalho em memória.
+ * @return int O novo RRN livre e alocado logicamente.
  */
 int arvoreb_obterRRNNovoNo(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB) {
     int rrnNovo;
@@ -219,6 +201,11 @@ int arvoreb_obterRRNNovoNo(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB) {
 /**
  * @brief Monta a estrutura do nó estritamente em memória primária.
  * Isola a responsabilidade de formatação sem afetar as métricas do cabeçalho.
+ * @param tipoNo Tipo de página (Folha, Interna, Raiz).
+ * @param P1 RRN da subárvore esquerda basal.
+ * @param estacao Vetor de estações que populam o nó.
+ * @param nroChaves Quantidade de chaves iniciais.
+ * @return NO Estrutura do nó montada e formatada.
  */
 NO arvoreb_montarNo(int tipoNo, int P1, Estacao *estacao, int nroChaves) {
     NO no;
@@ -242,7 +229,7 @@ NO arvoreb_montarNo(int tipoNo, int P1, Estacao *estacao, int nroChaves) {
 }
 
 /* ========================================================================== *
- * FUNCIONALIDADES DE BUSCA                         *
+ * FUNCIONALIDADES DE BUSCA                                                   *
  * ========================================================================== */
 
 /**
@@ -252,26 +239,22 @@ NO arvoreb_montarNo(int tipoNo, int P1, Estacao *estacao, int nroChaves) {
  * @return Estacao* Retorna o endereço da estação exata (se encontrada) ou a estação que contém o ponteiro P2 do caminho de descida.
  */
 Estacao* arvoreb_buscaBinaria(NO *node, int chave) {
-    Estacao *retorno = NULL; // Ponteiro para armazenar o caminho de descida no caso da chave não estar neste nó
+    Estacao *retorno = NULL; 
 
     int ini = 0, fim = node->nroChaves-1, mid;
     Estacao *estacao;
     
-    // Algoritmo clássico de busca binária O(log n)
     while (ini <= fim) {
-        mid = (ini+fim) >> 1; // Equivalente a (ini+fim)/2
+        mid = (ini+fim) >> 1; 
         estacao = &node->estacao[mid];
 
-        // Caso de sucesso: chave encontrada na página atual
         if (chave == estacao->chave)
             return estacao;
 
-        // Se a chave buscada é maior, atualizamos o teto inferior e marcamos a estação como possível caminho de descida (via P2)
         if (chave > estacao->chave) {
             retorno = estacao;
             ini = mid+1;
         }
-        // Se a chave buscada é menor, reduzimos o teto superior (descida será via P1 ou P2 de uma estação anterior)
         else {
             fim = mid-1;
         }
@@ -289,25 +272,19 @@ Estacao* arvoreb_buscaBinaria(NO *node, int chave) {
  * @return int Retorna a referência (Pr/byte offset) do registro de dados, ou -1 se não for encontrado.
  */
 int arvoreb_buscarRecursivo(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int nodeRRN, int chave) {
-    // Caso base: alcançou uma folha nula (chave não existe na árvore)
     if (nodeRRN == -1)
         return -1;
 
-    // Carrega o nó atual da memória secundária
     NO node = arvoreb_lerNoBin(arquivoIndiceBin, nodeRRN);
 
-    // Caso Especial P1: Chave menor que o limite inferior absoluto do nó. Desce pela subárvore mais à esquerda.
     if (chave < node.estacao[0].chave)
         return arvoreb_buscarRecursivo(arquivoIndiceBin, cabecalhoAB, node.P1, chave);
 
-    // Executa a busca intra-nó para localizar a chave ou descobrir o ponteiro P2 apropriado
     Estacao *retorno = arvoreb_buscaBinaria(&node, chave);
 
-    // Condição de parada de sucesso: a busca binária encontrou uma correspondência exata
     if (retorno->chave == chave) 
         return retorno->Pr;
 
-    // Passo recursivo: a chave não está nesta página. Continua a busca na subárvore delimitada pelo ponteiro P2
     return arvoreb_buscarRecursivo(arquivoIndiceBin, cabecalhoAB, retorno->P2, chave);
 }
 
@@ -333,14 +310,11 @@ int arvoreb_buscar(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int chave) 
  * @param nroChaves Quantidade atual de chaves já presentes no vetor.
  */
 void arvoreb_ordenaNo(Estacao *estacoes, Estacao *estacaoParaInserir, int nroChaves) {
-    // Deslocamento da direita para a esquerda (Insertion Sort local) para abrir espaço garantindo integridade de memória
     for (int i = nroChaves; i >= 0; i--) {
-        // Encontra o ponto de inserção: extremo esquerdo (i==0) ou imediatamente após uma chave menor
         if (i == 0 || estacoes[i-1].chave < estacaoParaInserir->chave) {
-            estacoes[i] = *estacaoParaInserir; // Cópia profunda mantendo a chave, Pr e Px consolidados
+            estacoes[i] = *estacaoParaInserir; 
             break;
         }
-        // Desloca o elemento atual uma posição à direita para acomodar a nova inserção
         else {
             estacoes[i] = estacoes[i-1];
         }
@@ -367,11 +341,8 @@ Estacao arvoreb_split(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, Estacao 
     arvoreb_ordenaNo(estacoes, estacaoParaInserir, ORDEM_ARVORE-1);
 
     // --- Etapa 2: Definição da Mediana e Distribuição de Chaves ---
-    
-    // A mediana promovida (garante o nó esquerdo com uma chave a mais: 0 e 1 esquerdas, 2 sobe, 3 direita)
     Estacao estacaoPromovida = estacoes[ORDEM_ARVORE/2]; 
 
-    // Aloca RRN com base em reuso de pilha (topo) ou proxRRN
     int RRNNovoNO = arvoreb_obterRRNNovoNo(arquivoIndiceBin, cabecalhoAB);
 
     NO novoNo; 
@@ -379,16 +350,12 @@ Estacao arvoreb_split(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, Estacao 
     for (int i = 0; i < OCUPACAO_MINIMA; i++)
         novoNo.estacao[i] = estacoes[ORDEM_ARVORE/2 + 1 + i];
 
-    // O P1 do novo nó direito herda o P2 da chave promovida
     novoNo.P1 = estacaoPromovida.P2;
-    // O P2 da chave promovida DEVE apontar para o RRN que acabamos de alocar
     estacaoPromovida.P2 = RRNNovoNO;
 
-    // O nó esquerdo (original) fica com a primeira metade
     for (int i = 0; i < ORDEM_ARVORE/2; i++)
         node->estacao[i] = estacoes[i];
 
-    // Limpeza de campos fantasmas no nó esquerdo original
     Estacao estacaoVazia = {-1, -1, -1};
     for (int i = ORDEM_ARVORE/2; i < ORDEM_ARVORE-1; i++)
         node->estacao[i] = estacaoVazia;
@@ -396,42 +363,29 @@ Estacao arvoreb_split(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, Estacao 
     node->nroChaves = ORDEM_ARVORE / 2;
 
     // --- Etapa 3: Tratamento e Hierarquia de Tipos de Nó ---
-
-    // Ajusta o tipo do nó original após o split.
-    // Se ele era raiz, deixará de ser raiz quando uma nova raiz for criada.
     if (node->P1 == -1) {
         node->tipoNo = -1; // folha
     } else {
         node->tipoNo = 1;  // intermediário
     }
 
-    // Descobre se o novo nó direito é folha ou intermediário.
-    // O novo nó direito é folha se seu P1 for -1.
     if (novoNo.P1 == -1) {
         novoNo.tipoNo = -1;
     } else {
         novoNo.tipoNo = 1;
     }
 
-    // Persiste o nó esquerdo atualizado no disco
     arvoreb_escreverNoBin(arquivoIndiceBin, node, nodeRRN);
 
     // --- Etapa 4: Criação e Gravação Definitiva ---
-
-    // Montamos e escrevemos a nova página com segurança
     novoNo = arvoreb_montarNo(novoNo.tipoNo, novoNo.P1, novoNo.estacao, OCUPACAO_MINIMA);
     arvoreb_escreverNoBin(arquivoIndiceBin, &novoNo, RRNNovoNO);
     
-    // Tratamento excepcional da Raiz: Utilizando a validação estrita (RRN atual é a raiz?)
     if (nodeRRN == cabecalhoAB->noRaiz) {
-        
-        // Busca espaço para a nova raiz na pilha de removidos ou cria novo
         int RRNNovaRaiz = arvoreb_obterRRNNovoNo(arquivoIndiceBin, cabecalhoAB);
         
-        // Atualiza a âncora da árvore
         cabecalhoAB->noRaiz = RRNNovaRaiz; 
         
-        // Monta a nova raiz apontando P1 para a metade esquerda (o nó que sofreu split)
         NO novaRaiz = arvoreb_montarNo(0, nodeRRN, &estacaoPromovida, 1);
         arvoreb_escreverNoBin(arquivoIndiceBin, &novaRaiz, RRNNovaRaiz);
     } 
@@ -450,45 +404,35 @@ Estacao arvoreb_split(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, Estacao 
 Estacao arvoreb_inserirRecursivo(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int nodeRRN, Estacao estacaoParaInserir) {
     NO node = arvoreb_lerNoBin(arquivoIndiceBin, nodeRRN);
 
-    // Passo de Descida: Se a página não for folha (exceção se for apenas 1 nó solitário), direcione o fluxo em profundidade
     if (node.tipoNo != -1 && cabecalhoAB->nroNos > 1) {
-            
-        // Caso de desvio pelo filho mais à esquerda (âncora)
         if (estacaoParaInserir.chave < node.estacao[0].chave)
             estacaoParaInserir = arvoreb_inserirRecursivo(arquivoIndiceBin, cabecalhoAB, node.P1, estacaoParaInserir);
         else {
             Estacao *retorno = arvoreb_buscaBinaria(&node, estacaoParaInserir.chave);
 
-            // Regra de Integridade: Se a chave já existir no banco, a inserção é abortada devolvendo um código de cancelamento negativo
             if (retorno->chave == estacaoParaInserir.chave) {
                 estacaoParaInserir.chave = -1;
                 return estacaoParaInserir;
             }
-            // Chama a recursão pela subárvore direita delimitada na busca
             estacaoParaInserir = arvoreb_inserirRecursivo(arquivoIndiceBin, cabecalhoAB, retorno->P2, estacaoParaInserir);
         }
     }
 
-    // Resolução: Condição na qual a propagação foi concluída silenciosamente ou o nó já existia.
     if (estacaoParaInserir.chave < 0)
         return estacaoParaInserir;
 
-    // Inserção Efetiva em Nível Atual (Folha ou Propagação de Interno)
-    
-    // Possibilidade A: A página possui espaço disponível para acomodação
     if (node.nroChaves < 3) {
-        arvoreb_ordenaNo(node.estacao, &estacaoParaInserir, node.nroChaves); // Acopla garantindo integridade e ponteiros
+        arvoreb_ordenaNo(node.estacao, &estacaoParaInserir, node.nroChaves); 
         node.nroChaves++;
 
-        estacaoParaInserir.chave = -1; // Conclui o processo mascarando o retorno (não exige mais propagação ao pai)
-        arvoreb_escreverNoBin(arquivoIndiceBin, &node, nodeRRN); // Commit dos dados da página no disco
+        estacaoParaInserir.chave = -1; 
+        arvoreb_escreverNoBin(arquivoIndiceBin, &node, nodeRRN); 
     }
-    // Possibilidade B: Página sobrecarregada deflagra processo de cisão
     else {
         estacaoParaInserir = arvoreb_split(arquivoIndiceBin, cabecalhoAB, &estacaoParaInserir, &node, nodeRRN);
     }
 
-    return estacaoParaInserir; // Retorna status ao nível superior
+    return estacaoParaInserir; 
 }
 
 /**
@@ -500,17 +444,14 @@ Estacao arvoreb_inserirRecursivo(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoA
 void arvoreb_inserir(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, Estacao estacaoParaInserir) {
     NO node;
 
-    // Condição Gênesis: Árvore completamente limpa sem raiz inicializada
     if (cabecalhoAB->noRaiz == -1) {
         cabecalhoAB->noRaiz = cabecalhoAB->proxRRN;
         
-        // Cria primeira e única página da árvore formatada atuando simultaneamente como folha e raiz
         node = arvoreb_criarNoBin(cabecalhoAB, -1, -1, &estacaoParaInserir);
         arvoreb_escreverNoBin(arquivoIndiceBin, &node, cabecalhoAB->noRaiz);
         return;
     }
     
-    // Inicia cascata top-down delegando o processo ao fluxo recursivo profundo
     arvoreb_inserirRecursivo(arquivoIndiceBin, cabecalhoAB, cabecalhoAB->noRaiz, estacaoParaInserir);
 }
 
@@ -519,6 +460,12 @@ void arvoreb_inserir(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, Estacao e
  * FUNCIONALIDADES DE REMOÇÃO E AUXILIARES                                    *
  * ========================================================================== */
 
+/**
+ * @brief Realiza uma busca linear (ou binária) para encontrar o índice de uma chave ou o local de descida.
+ * @param node Ponteiro para a estrutura do nó atual.
+ * @param chave Chave a ser pesquisada.
+ * @return int O índice apropriado da estação ou a fronteira de descida.
+ */
 int arvoreb_encontrarPosicao(NO *node, int chave) {
     int i = 0;
     while (i < node->nroChaves && chave > node->estacao[i].chave) {
@@ -527,6 +474,12 @@ int arvoreb_encontrarPosicao(NO *node, int chave) {
     return i;
 }
 
+/**
+ * @brief Retorna o RRN do filho na posição solicitada, abstraindo o acesso entre P1 e P2.
+ * @param node O nó pai.
+ * @param pos Posição lógica da subárvore.
+ * @return int RRN do filho (ou -1 se inválido).
+ */
 int arvoreb_getFilho(NO *node, int pos) {
     if (pos < 0 || pos > ORDEM_ARVORE - 1) return -1;
 
@@ -534,6 +487,12 @@ int arvoreb_getFilho(NO *node, int pos) {
     return node->estacao[pos - 1].P2;
 }
 
+/**
+ * @brief Define de forma abstraída o RRN de uma subárvore em uma posição específica.
+ * @param node O nó que terá seu ponteiro alterado.
+ * @param pos Posição lógica do ponteiro a ser sobrescrito.
+ * @param rrn Novo RRN filho.
+ */
 void arvoreb_setFilho(NO *node, int pos, int rrn) {
     if (pos < 0 || pos > ORDEM_ARVORE - 1) return;
 
@@ -544,6 +503,12 @@ void arvoreb_setFilho(NO *node, int pos, int rrn) {
     }
 }
 
+/**
+ * @brief Remove fisicamente uma chave de um nó em memória por meio de shift sequencial à esquerda.
+ * Limpa com valores nulos a estação sobrante no final do vetor.
+ * @param node Ponteiro para o nó.
+ * @param pos Índice da estação que será deletada.
+ */
 void arvoreb_removerChaveDoNo(NO *node, int pos) {
     // Desloca as chaves, referências e ponteiros para a esquerda a partir de 'pos'
     for (int i = pos; i < node->nroChaves - 1; i++) {
@@ -556,6 +521,12 @@ void arvoreb_removerChaveDoNo(NO *node, int pos) {
     node->nroChaves--;
 }
 
+/**
+ * @brief Busca a estação sucessora in-order, que sempre reside na folha mais à esquerda da subárvore direita.
+ * @param arquivoIndiceBin Ponteiro para o arquivo binário de índice.
+ * @param rrnSubarvoreDireita RRN do nó base da subárvore (P2 da chave).
+ * @return Estacao Uma cópia da estação sucessora (contendo chave e Pr).
+ */
 Estacao arvoreb_buscarSucessora(FILE *arquivoIndiceBin, int rrnSubarvoreDireita) {
     NO atual = arvoreb_lerNoBin(arquivoIndiceBin, rrnSubarvoreDireita);
     
@@ -567,6 +538,12 @@ Estacao arvoreb_buscarSucessora(FILE *arquivoIndiceBin, int rrnSubarvoreDireita)
     return atual.estacao[0];
 }
 
+/**
+ * @brief Invalida logicamente uma página que sofreu merge e a insere no topo da pilha de remoções.
+ * @param arquivoIndiceBin Arquivo binário de índice.
+ * @param cabecalhoAB Ponteiro do cabeçalho que guarda o topo atual.
+ * @param rrnRemovido RRN da página que ficará ociosa.
+ */
 void arvoreb_empilharNoRemovido(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnRemovido) {
     NO removido = arvoreb_lerNoBin(arquivoIndiceBin, rrnRemovido);
     
@@ -585,6 +562,22 @@ void arvoreb_empilharNoRemovido(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB
  * TRATAMENTO DE UNDERFLOW: REDISTRIBUIÇÃO E CONCATENAÇÃO                     *
  * -------------------------------------------------------------------------- */
 
+ // FUNÇÃO DE REDISTRIBUIÇÃO NÃO-GENERALIZA (HARDCODED) ABAIXO.
+
+
+/**
+ * @brief Executa empréstimo de chaves do irmão direito para suprir um filho em underflow.
+ * A rotação é feita através da chave separadora no nó pai.
+ * @param arquivoIndiceBin Arquivo binário.
+ * @param rrnPai RRN do pai.
+ * @param pai Ponteiro do pai na RAM.
+ * @param posFilho Índice do filho em underflow.
+ * @param rrnFilho RRN do nó em underflow.
+ * @param filho Ponteiro do filho na RAM.
+ * @param rrnDir RRN do irmão direito (ou -1 se inexistente).
+ * @return int 1 se o empréstimo foi possível e executado; 0 se irmão direito também não tem chaves sobrando.
+ */
+ /*
 int arvoreb_redistribuirDireita(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnDir) {
     if (rrnDir == -1) return 0;
 
@@ -636,7 +629,69 @@ int arvoreb_redistribuirDireita(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int
 
     return 1;
 }
+*/
 
+//FUNÇÃO DE REDISTRIBUIÇÃO GENERALIZADA ABAIXO
+
+/**
+ * @brief Executa empréstimo de UMA chave do irmão direito para suprir um filho em underflow.
+ * A rotação é generalizada para qualquer ordem de Árvore-B através da chave separadora no pai.
+ * @param arquivoIndiceBin Arquivo binário.
+ * @param rrnPai RRN do pai.
+ * @param pai Ponteiro do pai na RAM.
+ * @param posFilho Índice do filho em underflow.
+ * @param rrnFilho RRN do nó em underflow.
+ * @param filho Ponteiro do filho na RAM.
+ * @param rrnDir RRN do irmão direito (ou -1 se inexistente).
+ * @return int 1 se o empréstimo foi executado; 0 se irmão não tem saldo para emprestar.
+ */
+int arvoreb_redistribuirDireita(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnDir) {
+    if (rrnDir == -1) return 0;
+
+    NO irmaoDir = arvoreb_lerNoBin(arquivoIndiceBin, rrnDir);
+
+    // Se o irmão tem o mínimo, não pode emprestar, caso contrário causaria underflow em cadeia.
+    if (irmaoDir.nroChaves <= OCUPACAO_MINIMA) return 0; 
+
+    // 1. A chave separadora do pai desce para a última posição disponível do filho
+    filho->estacao[filho->nroChaves].chave = pai->estacao[posFilho].chave;
+    filho->estacao[filho->nroChaves].Pr = pai->estacao[posFilho].Pr;
+    
+    // O filho adopta como P2 a antiga âncora (P1) do irmão direito
+    filho->estacao[filho->nroChaves].P2 = irmaoDir.P1; 
+    filho->nroChaves++;
+
+    // 2. A primeira chave do irmão direito sobe para substituir o separador no pai
+    pai->estacao[posFilho].chave = irmaoDir.estacao[0].chave;
+    pai->estacao[posFilho].Pr = irmaoDir.estacao[0].Pr;
+
+    // 3. O antigo P2 da chave que acabou de subir torna-se a nova âncora (P1) do irmão direito
+    irmaoDir.P1 = irmaoDir.estacao[0].P2;
+
+    // 4. Remove a primeira chave do irmão direito 
+    // (A função arvoreb_removerChaveDoNo já empurra todas as restantes para a esquerda de forma automática!)
+    arvoreb_removerChaveDoNo(&irmaoDir, 0);
+
+    // Salva as alterações sincronizadas no ficheiro binário
+    arvoreb_escreverNoBin(arquivoIndiceBin, filho, rrnFilho);
+    arvoreb_escreverNoBin(arquivoIndiceBin, &irmaoDir, rrnDir);
+    arvoreb_escreverNoBin(arquivoIndiceBin, pai, rrnPai);
+
+    return 1;
+}
+
+/**
+ * @brief Executa empréstimo de chaves do irmão esquerdo para suprir um filho em underflow.
+ * A rotação é feita de forma análoga mas em direção invertida através do pai.
+ * @param arquivoIndiceBin Arquivo binário.
+ * @param rrnPai RRN do pai.
+ * @param pai Ponteiro do pai na RAM.
+ * @param posFilho Índice do filho em underflow.
+ * @param rrnFilho RRN do nó em underflow.
+ * @param filho Ponteiro do filho na RAM.
+ * @param rrnEsq RRN do irmão esquerdo (ou -1).
+ * @return int 1 se executado; 0 se inválido por falta de saldo no vizinho.
+ */
 int arvoreb_redistribuirEsquerda(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnEsq) {
     if (rrnEsq == -1) return 0;
     
@@ -669,6 +724,19 @@ int arvoreb_redistribuirEsquerda(FILE *arquivoIndiceBin, int rrnPai, NO *pai, in
     return 1;
 }
 
+/**
+ * @brief Se a redistribuição falhar, executa a união irreversível do filho com seu irmão esquerdo.
+ * O filho é inutilizado e o irmão absorve suas chaves e a chave separadora do pai.
+ * @param arquivoIndiceBin Arquivo binário.
+ * @param cabecalhoAB Cabeçalho para gerenciar a pilha de lixo do nó filho que será destruído.
+ * @param rrnPai RRN do pai (que perderá 1 chave).
+ * @param pai Ponteiro do pai.
+ * @param posFilho Índice do nó que sumirá.
+ * @param rrnFilho RRN do nó destruído.
+ * @param filho Nó morto que repassará os dados.
+ * @param rrnEsq RRN do irmão receptor.
+ * @return int 1 se executado (há capacidade); 0 se extrapolar ordem.
+ */
 int arvoreb_concatenarEsquerda(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnEsq) {
     if (rrnEsq == -1) return 0;
     if (posFilho <= 0) return 0; // Proteção de limite de índice no nó pai
@@ -703,6 +771,18 @@ int arvoreb_concatenarEsquerda(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB,
     return 1;
 }
 
+/**
+ * @brief Variante de união: o irmão direito cede todas as chaves para o filho e é destruído.
+ * @param arquivoIndiceBin Arquivo binário.
+ * @param cabecalhoAB Gerenciador de lixo para o irmão que sumirá.
+ * @param rrnPai RRN pai.
+ * @param pai Ponteiro do pai.
+ * @param posFilho Índice do nó basal.
+ * @param rrnFilho RRN do nó receptor.
+ * @param filho Ponteiro do nó que se agigantará.
+ * @param rrnDir RRN do irmão direito destruído.
+ * @return int 1 se executado, 0 caso contrário.
+ */
 int arvoreb_concatenarDireita(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnDir) {
     if (rrnDir == -1) return 0;
     if (posFilho < 0 || posFilho >= pai->nroChaves) return 0; // Proteção de limite de índice no nó pai
@@ -737,6 +817,14 @@ int arvoreb_concatenarDireita(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, 
     return 1;
 }
 
+/**
+ * @brief Gerenciador de estratégia de underflow. Testa sequencialmente (empréstimos e fusões) até que a página volte ao balanço matemático exigido.
+ * @param arquivoIndiceBin Arquivo de índice em disco.
+ * @param cabecalhoAB Cabeçalho central em RAM.
+ * @param rrnPai RRN do nó superior (pai do que sofreu a deficiência).
+ * @param pai Ponteiro do pai (sofrerá modificações indiretas de suas estações em qualquer estratégia).
+ * @param posFilho Índice do nó carente no vetor do pai.
+ */
 void arvoreb_corrigirUnderflow(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho) {
     int rrnFilho = arvoreb_getFilho(pai, posFilho);
     if (rrnFilho == -1) return; // Proteção contra leitura inválida
@@ -764,7 +852,14 @@ void arvoreb_corrigirUnderflow(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB,
  * FLUXO PRINCIPAL RECURSIVO E AJUSTE DE RAIZ                                 *
  * -------------------------------------------------------------------------- */
 
-// Retorna 1 se a chave foi encontrada e removida, e 0 caso contrário.
+/**
+ * @brief Caminha recursivamente a árvore para apagar chaves e gerenciar eventuais subidas de underflow.
+ * @param arquivoIndiceBin Ponteiro do arquivo B-Tree.
+ * @param cabecalhoAB Cabeçalho base.
+ * @param rrnAtual O nó de parada ou descida atual.
+ * @param chave Chave-alvo para detonação.
+ * @return int 1 em caso de remoção bem-sucedida, disparando verificações nos andares superiores. 0 se falhou/não encontrado.
+ */
 int arvoreb_removerRecursivo(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnAtual, int chave) {
     if (rrnAtual == -1) return 0; // Condição de parada: a chave não existe na árvore
     
@@ -824,6 +919,11 @@ int arvoreb_removerRecursivo(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, i
     return 1;
 }
 
+/**
+ * @brief Última barreira de manutenção. Se uma página inteira e vazia chegar ao nível Raiz através de merges consecutivos, ela rebaixa a árvore em um andar.
+ * @param arquivoIndiceBin Arquivo binário em avaliação.
+ * @param cabecalhoAB O cabecalho, responsável por atualizar quem manda na árvore de fato.
+ */
 void arvoreb_ajustarRaiz(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB) {
     if (cabecalhoAB->noRaiz == -1) return;
 
@@ -863,6 +963,12 @@ void arvoreb_ajustarRaiz(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB) {
     }
 }
 
+/**
+ * @brief Funcionalidade encapsuladora externa para requisição de deleção de chave.
+ * @param arquivoIndiceBin Ponteiro do binário do índice.
+ * @param cabecalhoAB O cabeçalho na RAM.
+ * @param chave Código codEstacao a ser fulminado da base de busca.
+ */
 void arvoreb_remover(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int chave) {
     if (cabecalhoAB->noRaiz == -1) return; // Árvore vazia, não há o que remover
     
