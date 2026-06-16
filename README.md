@@ -76,4 +76,3 @@ make zip
 ## 🔒 Gerenciamento de Consistência
 
 Para proteger a integridade do banco de dados (tanto o de dados brutos quanto o de índice) em cenários de interrupção abrupta (Crashes), o status do cabeçalho é atualizado em tempo real. Sempre que um arquivo é aberto para escrita, o byte de status recebe o char '0' imediatamente no disco. Ao final da transação bem-sucedida, o status é cravado como '1' (Consistente).
-```

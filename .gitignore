@@ -18,7 +18,9 @@ Thumbs.db
 *.gdb
 *.txt
 *.in
+*.sh
 
 # Testes e Binários, pois podem ficar desatualizados
 Testes/
 Binários/
+Entrada/
