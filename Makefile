@@ -48,7 +48,7 @@ ZIP = entrega.zip
 # O comando 'zip' empacota os fontes e o Makefile
 zip:
 	@echo "Empacotando arquivos para submissão..."
-	zip -r $(ZIP) . -i \*.c \*.h \*Makefile
+	zip -r $(ZIP) . -i \*.c \*.h \*Makefile *.md
 
 # O comando 'debug' recompila o código e abre o GDB automatizado
 debug: all
