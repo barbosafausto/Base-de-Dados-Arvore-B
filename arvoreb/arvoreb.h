@@ -11,6 +11,9 @@
 
     // O tamanho dos registros de dados (nós da árvore) deve ser de 53 bytes.
     #define TAM_NO 53
+
+    // O tamanho do cabeçalho da árvore-b deve ser de 17 bytes
+    #define TAM_CABECALHOAB 17
     
     // A ordem da árvore-B é 4, ou seja, m=4. 
     // Portanto, um nó terá 3 chaves no máximo e 4 descendentes.
@@ -68,14 +71,13 @@
         suas respectivas referências (Pr) para arquivo de dados
         e seus filhos na árvore-B (P2).
 
-        Usamos vetores para poder generalizar um pouco a árvore. :D
+        Usamos vetores para poder generalizar a árvore. :D
         */
         Estacao estacao[ORDEM_ARVORE-1];
 
         /*
         Vamos considerar P1 como o filho adotivo da estacao[0] de cada nó.
         Isso acontece porque as estações possuem apenas filhos direitos.
-        O valor -1 deve ser usado para denotar que um ponteiro é nulo.
         */ 
         int P1; 
 
@@ -104,7 +106,7 @@
 
 
     /* ========================================================================== *
-     * PROTÓTIPOS: MANIPULAÇÃO DE NÓS (I/O)                                       *
+     * PROTÓTIPOS: MANIPULAÇÃO DE NÓS 
      * ========================================================================== */
 
     // Lê uma página (nó) específica da memória secundária dado o seu RRN.
@@ -141,7 +143,7 @@
      * PROTÓTIPOS: FUNCIONALIDADE DE INSERÇÃO                                     *
      * ========================================================================== */
 
-    // Função principal que engatilha o processo de inserção de uma nova chave na árvore.
+    // Função principal que realiza o processo de inserção de uma nova chave na árvore.
     void arvoreb_inserir(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, Estacao estacaoParaInserir);
 
     // Função recursiva interna que desce a árvore, realiza a inserção e propaga eventuais splits para cima.
@@ -150,7 +152,7 @@
     // Realiza o particionamento (split) de uma página lotada, promovendo a chave mediana e criando o novo nó direito.
     Estacao arvoreb_split(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, Estacao *estacaoParaInserir, NO *node, int nodeRRN);
 
-    // Desloca e insere ordenadamente uma chave no vetor em memória (Insertion Sort).
+    // Desloca e insere ordenadamente uma chave no vetor em memória.
     void arvoreb_ordenaNo(Estacao *estacoes, Estacao *estacaoParaInserir, int nroChaves);
 
 
@@ -187,12 +189,37 @@
 
     // Etapas de rebalanceamento
     int arvoreb_redistribuirDireita(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnDir);
+
+    // Executa empréstimo de chaves do irmão esquerdo para suprir um filho em underflow via pai.
     int arvoreb_redistribuirEsquerda(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnEsq);
+
+    // Une o nó em underflow irreversivelmente com seu irmão esquerdo.
     int arvoreb_concatenarEsquerda(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnEsq);
+
+    // Variante de união: o irmão direito cede todas as chaves para o nó em underflow e é destruído.
     int arvoreb_concatenarDireita(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnDir);
 
     // Atualizar a raiz
     void arvoreb_ajustarRaiz(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB);
 
+    // --- Funções Auxiliares de Manipulação ---
+
+    // Busca a estação sucessora in-order (na folha mais à esquerda da subárvore direita).
+    Estacao arvoreb_buscarSucessora(FILE *arquivoIndiceBin, int rrnSubarvoreDireita);
+
+    // Realiza uma busca linear (ou binária) para encontrar o índice de uma chave ou o local de descida.
+    int arvoreb_encontrarPosicao(NO *node, int chave);
+
+    // Retorna o RRN do filho na posição solicitada, abstraindo o acesso entre P1 e P2.
+    int arvoreb_getFilho(NO *node, int pos);
+
+    // Define de forma abstraída o RRN de uma subárvore em uma posição específica.
+    void arvoreb_setFilho(NO *node, int pos, int rrn);
+
+    // Remove fisicamente uma chave de um nó em memória por meio de shift sequencial à esquerda.
+    void arvoreb_removerChaveDoNo(NO *node, int pos);
+
+    // Invalida logicamente uma página que sofreu merge e a insere no topo da pilha de remoções.
+    void arvoreb_empilharNoRemovido(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB, int rrnRemovido);
 
 #endif

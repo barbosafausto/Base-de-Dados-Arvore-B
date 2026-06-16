@@ -14,8 +14,10 @@ Thumbs.db
 # Compactação
 *.zip
 
-# Arquivos de Texto
+# Arquivos de Texto e Debug
+*.gdb
 *.txt
+*.in
 
 # Testes e Binários, pois podem ficar desatualizados
 Testes/

@@ -11,7 +11,7 @@
 /**
  * @brief Função principal que gerencia o fluxo de execução do programa.
  * O programa funciona como um interpretador de comandos, onde o primeiro
- * inteiro lido na entrada padrão define a funcionalidade (1 a 8) a ser executada.
+ * inteiro lido na entrada padrão define a funcionalidade (1 a 10) a ser executada.
  * * @return int 0 para execução finalizada com sucesso.
  */
 int main() {
@@ -52,14 +52,9 @@ int main() {
          * Recupera registros que satisfaçam um ou mais critérios de busca.
          */
         case 3:
-
             // Por causa da função selectWhereAB, a função selectWhere não precisa mais ser chamada aqui.
-            // selectWhere(arquivo1, nBuscas);
-
             // A função selectWhereAB será responsável por chamá-la caso não haja o campo "codEstacao"
-            // entre os filtros de entrada :D
-        
-            // Por isso, chamaremos ela.
+            // entre os filtros de entrada.
             scanf(" %s %d", arquivo1, &nBuscas);
             selectWhereAB(arquivo1, NULL, nBuscas);
             break;
@@ -111,8 +106,9 @@ int main() {
             break;
 
         /**
-         * Funcionalidade [9]: INSERT INTO (Na Árvore-B e no Índice)
-         * Insere novos registros no arquivo de dados e atualiza o arquivo de índice Árvore-B para manter a consistência.
+         * Funcionalidade [9]: INSERT INTO (Na Árvore-B e no Arquivo de Dados)
+         * Insere novos registros no arquivo de dados e atualiza o arquivo de índice 
+         * Árvore-B simultaneamente para manter a consistência estrutural.
          */
         case 9:
             scanf(" %s %s %d", arquivo1, arquivo2, &nBuscas);
@@ -120,8 +116,9 @@ int main() {
             break;
 
         /**
-         * Funcionalidade [10]: DELETE WHERE (Na Árvode-B e no Índice)
-         * Deleta registros a partir de um filtro.
+         * Funcionalidade [10]: DELETE WHERE (Na Árvore-B e no Arquivo de Dados)
+         * Deleta registros lógicos no arquivo de dados a partir de um filtro e 
+         * remove a chave correspondente do índice Árvore-B.
          */
         case 10:
             scanf(" %s %s %d", arquivo1, arquivo2, &nBuscas);
