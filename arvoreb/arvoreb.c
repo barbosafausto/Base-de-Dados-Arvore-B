@@ -648,30 +648,36 @@ void arvoreb_empilharNoRemovido(FILE *arquivoIndiceBin, CabecalhoAB *cabecalhoAB
  */
 int arvoreb_redistribuirDireita(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnDir) {
     if (rrnDir == -1) return 0;
+    if (posFilho < 0 || posFilho >= pai->nroChaves) return 0;
 
     NO irmaoDir = arvoreb_lerNoBin(arquivoIndiceBin, rrnDir);
 
-    // Se o irmão tem o mínimo, não pode emprestar, caso contrário causaria underflow em cadeia.
-    if (irmaoDir.nroChaves <= OCUPACAO_MINIMA) return 0; 
+    // Quantidade de chaves que faltam pro filho e quantas sobrem do irmão pra ceder sem ficar em underflow
+    int faltam = OCUPACAO_MINIMA - filho->nroChaves;
+    int sobram = irmaoDir.nroChaves - OCUPACAO_MINIMA;
 
-    // 1. A chave separadora do pai desce para a última posição disponível do filho
-    filho->estacao[filho->nroChaves].chave = pai->estacao[posFilho].chave;
-    filho->estacao[filho->nroChaves].Pr = pai->estacao[posFilho].Pr;
-    
-    // O filho adopta como P2 a antiga âncora (P1) do irmão direito
-    filho->estacao[filho->nroChaves].P2 = irmaoDir.P1; 
-    filho->nroChaves++;
+    if (faltam <= 0) return 1;      // Filho válido
+    if (sobram < faltam) return 0;  // Evita redistribuição parcial
+    if ((filho->nroChaves + faltam) > (ORDEM_ARVORE - 1)) return 0;
 
-    // 2. A primeira chave do irmão direito sobe para substituir o separador no pai
-    pai->estacao[posFilho].chave = irmaoDir.estacao[0].chave;
-    pai->estacao[posFilho].Pr = irmaoDir.estacao[0].Pr;
+    for (int i = 0; i < faltam; i++){
+        // 1. A chave separadora do pai desce para a última posição disponível do filho
+        filho->estacao[filho->nroChaves].chave = pai->estacao[posFilho].chave;
+        filho->estacao[filho->nroChaves].Pr = pai->estacao[posFilho].Pr;
+        filho->estacao[filho->nroChaves].P2 = irmaoDir.P1; 
+        filho->nroChaves++;
 
-    // 3. O antigo P2 da chave que acabou de subir torna-se a nova âncora (P1) do irmão direito
-    irmaoDir.P1 = irmaoDir.estacao[0].P2;
+        // 2. A primeira chave do irmão direito sobe para substituir o separador no pai
+        pai->estacao[posFilho].chave = irmaoDir.estacao[0].chave;
+        pai->estacao[posFilho].Pr = irmaoDir.estacao[0].Pr;
 
-    // 4. Remove a primeira chave do irmão direito 
-    // (A função arvoreb_removerChaveDoNo já empurra todas as restantes para a esquerda de forma automática!)
-    arvoreb_removerChaveDoNo(&irmaoDir, 0);
+        // 3. O antigo P2 da chave que acabou de subir torna-se a nova âncora (P1) do irmão direito
+        irmaoDir.P1 = irmaoDir.estacao[0].P2;
+
+        // 4. Remove a primeira chave do irmão direito 
+        // (A função arvoreb_removerChaveDoNo já empurra todas as restantes para a esquerda de forma automática!)
+        arvoreb_removerChaveDoNo(&irmaoDir, 0);
+    }
 
     // Salva as alterações sincronizadas no ficheiro binário
     arvoreb_escreverNoBin(arquivoIndiceBin, filho, rrnFilho);
@@ -695,33 +701,47 @@ int arvoreb_redistribuirDireita(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int
  */
 int arvoreb_redistribuirEsquerda(FILE *arquivoIndiceBin, int rrnPai, NO *pai, int posFilho, int rrnFilho, NO *filho, int rrnEsq) {
     if (rrnEsq == -1) return 0;
+    if (posFilho <= 0 || posFilho > pai->nroChaves) return 0;
     
     NO irmaoEsq = arvoreb_lerNoBin(arquivoIndiceBin, rrnEsq);
-    if (irmaoEsq.nroChaves <= OCUPACAO_MINIMA) return 0; // Não pode emprestar
 
-    // 1. Abre espaço no início do filho empurrando tudo para a direita
-    for (int i = filho->nroChaves; i > 0; i--) {
-        filho->estacao[i] = filho->estacao[i - 1];
+    // Quantidade de chaves que faltam pro filho e quantas sobrem do irmão pra ceder sem ficar em underflow
+    int faltam = OCUPACAO_MINIMA - filho->nroChaves;
+    int sobram = irmaoEsq.nroChaves - OCUPACAO_MINIMA;
+
+    if (faltam <= 0) return 1;      // Filho válido
+    if (sobram < faltam) return 0;  // Evita redistribuição parcial
+    if (filho->nroChaves + faltam > ORDEM_ARVORE - 1) return 0;
+
+    for (int i = 0; i < faltam; i++) {
+
+        // 1. Abre espaço no início do filho empurrando tudo para a direita
+        for (int j = filho->nroChaves; j > 0; j--) {
+            filho->estacao[j] = filho->estacao[j - 1];
+        }
+        
+        // 2. A chave separadora do pai desce para o início do filho
+        filho->estacao[0].chave = pai->estacao[posFilho - 1].chave;
+        filho->estacao[0].Pr = pai->estacao[posFilho - 1].Pr;
+        filho->estacao[0].P2 = filho->P1; // Antigo P1 vira o P2 da nova chave
+        
+        // 3. Último P2 do irmaoEsq vira o novo P1 do filho
+        filho->P1 = irmaoEsq.estacao[irmaoEsq.nroChaves - 1].P2; // Herda o último P2 do irmão esq
+        filho->nroChaves++;
+
+        // 4. A última chave do irmão esquerdo sobe para o pai
+        pai->estacao[posFilho - 1].chave = irmaoEsq.estacao[irmaoEsq.nroChaves - 1].chave;
+        pai->estacao[posFilho - 1].Pr = irmaoEsq.estacao[irmaoEsq.nroChaves - 1].Pr;
+
+        // 5. Remove a última chave do irmão esquerdo
+        arvoreb_removerChaveDoNo(&irmaoEsq, irmaoEsq.nroChaves - 1);
     }
-    filho->estacao[0].P2 = filho->P1; // Antigo P1 vira o P2 da nova chave
-
-    // 2. A chave separadora do pai desce para o início do filho
-    filho->estacao[0].chave = pai->estacao[posFilho - 1].chave;
-    filho->estacao[0].Pr = pai->estacao[posFilho - 1].Pr;
-    filho->P1 = irmaoEsq.estacao[irmaoEsq.nroChaves - 1].P2; // Herda o último P2 do irmão esq
-    filho->nroChaves++;
-
-    // 3. A última chave do irmão esquerdo sobe para o pai
-    pai->estacao[posFilho - 1].chave = irmaoEsq.estacao[irmaoEsq.nroChaves - 1].chave;
-    pai->estacao[posFilho - 1].Pr = irmaoEsq.estacao[irmaoEsq.nroChaves - 1].Pr;
-
-    // 4. Remove a última chave do irmão esquerdo
-    arvoreb_removerChaveDoNo(&irmaoEsq, irmaoEsq.nroChaves - 1);
-
+    
     // Salva as alterações
     arvoreb_escreverNoBin(arquivoIndiceBin, filho, rrnFilho);
     arvoreb_escreverNoBin(arquivoIndiceBin, &irmaoEsq, rrnEsq);
     arvoreb_escreverNoBin(arquivoIndiceBin, pai, rrnPai);
+
     return 1;
 }
 

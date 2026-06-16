@@ -22,7 +22,7 @@
     // A ocupação mínima é o teto da divisão da ordem por 2, subtraído de 1.
     // Uma página folha possui no mínimo teto(m/2)-1 chaves.
     // Teto de a/b: (a + b - 1)/b
-    #define OCUPACAO_MINIMA ((ORDEM_ARVORE + 2 - 1) / 2) - 1
+    #define OCUPACAO_MINIMA (((ORDEM_ARVORE + 2 - 1) / 2) - 1)
 
     /* ========================================================================== *
      * ESTRUTURAS DE DADOS                                                        *
